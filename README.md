@@ -7,9 +7,9 @@
 
 | 폴더 | 수업 | 내용 | 방법 | 도구 |
 |---|---|---|---|---|
-| [burnout-scale-cfa](burnout-scale-cfa) | 다변량심리데이터분석 (고려대, 2024-1) | 한국판 직무소진 척도(K-BAT) 문항 분석 | 확인적 요인분석, 고전검사이론 문항 분석 | R |
-| [mindreading-esem-replication](mindreading-esem-replication) | 연구실 분석 실습 (2024-1) | 공개 논문의 분석 재현 | 문항 묶음(parcel) CFA, ESEM (Mplus 연동) | R, Mplus |
-| [lca-from-scratch](lca-from-scratch) | 잠재변수모형 (고려대, 2025-1) | 잠재계층분석(LCA) 추정 알고리즘 구현 | 모의자료 생성, EM, Newton-Raphson | R |
+| [burnout-scale-cfa](burnout-scale-cfa) | 다변량심리데이터분석 | 한국판 직무소진 척도(K-BAT) 문항 분석 | 확인적 요인분석, 고전검사이론 문항 분석 | R |
+| [mindreading-esem-replication](mindreading-esem-replication) | 연구실 분석 실습 | 공개 논문의 분석 재현 | 문항 묶음(parcel) CFA, ESEM (Mplus 연동) | R, Mplus |
+| [lca-from-scratch](lca-from-scratch) | 잠재변수모형 | 잠재계층분석(LCA) 추정 알고리즘 구현 | 모의자료 생성, EM, Newton-Raphson | R |
 
 ## 방법 설명
 
