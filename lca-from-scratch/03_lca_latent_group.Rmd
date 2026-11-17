@@ -16,11 +16,11 @@ data(gss7677)
 grp_item <- c("PAPRES", "PADEG", "MADEG") # STATUS 측정 문항
 tol_item <- c("TOLRAC", "TOLCOM", "TOLHOMO", "TOLATH", "TOLMIL") # TOL 측정 문항
 
-to_int <- function(x) if (is.factor(x)) as.integer(x) else x # factor를 정수로 변환
+to_int <- function(x) if (is.factor(x)) as.integer(x) else x # 범주형(factor)을 정수로 변환
 
 # sapply로 묶어야 응답자 × 문항 숫자 행렬이 된다 (as.matrix(lapply(...))는 리스트 행렬이 됨)
-y_grp <- sapply(gss7677[, grp_item], to_int) # 그룹 변수 문항
-y_tol <- sapply(gss7677[, tol_item], to_int) # 잠재 변수 문항
+y_grp <- sapply(gss7677[, grp_item], to_int) # STATUS 문항 응답
+y_tol <- sapply(gss7677[, tol_item], to_int) # TOL 문항 응답
 dim(y_grp); dim(y_tol)
 ```
 ## 3. 함수
@@ -34,20 +34,20 @@ em_latent_group <- function(y_grp, y_tol, G = 3, C = 4,
                             maxiter = 1000, eps = 1e-6, seed = 2025) {
   set.seed(seed)
   N  <- nrow(y_grp);   M1 <- ncol(y_grp);   M2 <- ncol(y_tol)
-  r1 <- apply(y_grp, 2, max, na.rm = TRUE)  # 각 grp 항목의 범주 개수
-  r2 <- apply(y_tol, 2, max, na.rm = TRUE)  # 각 tol 항목의 범주 개수
+  r1 <- apply(y_grp, 2, max, na.rm = TRUE)  # STATUS 문항별 범주 수
+  r2 <- apply(y_tol, 2, max, na.rm = TRUE)  # TOL 문항별 범주 수
   
-  # 초기 파라미터 설정
-  delta   <- runif(G);        delta <- delta / sum(delta) # 혼합 비율
+  # 무작위 초기값
+  delta   <- runif(G);        delta <- delta / sum(delta) # STATUS 집단 비율
   gamma   <- matrix(runif(G*C), G, C)
-  gamma   <- gamma / rowSums(gamma) # 그룹 내 클래스 비율
+  gamma   <- gamma / rowSums(gamma) # 집단별 TOL 계층 비율
   rho_grp <- lapply(r1, function(m) {
     M <- matrix(runif(G*m), G, m)
-    M / rowSums(M) # grp 항목별 response 확률
+    M / rowSums(M) # STATUS 문항 응답확률
   })
   rho_tol <- lapply(r2, function(m) {
     M <- matrix(runif(C*m), C, m)
-    M / rowSums(M)  # tol 항목별 response 확률
+    M / rowSums(M)  # TOL 문항 응답확률
   })
   
   loglik <- -Inf
@@ -55,12 +55,12 @@ em_latent_group <- function(y_grp, y_tol, G = 3, C = 4,
     # ---------------------- E-step ------------------------
     tau <- array(0, dim = c(N, G, C))
     for (g in seq_len(G)) {
-      # 그룹 항목 확률 곱
+      # STATUS 문항 확률의 곱
       pr_grp <- apply(sapply(seq_len(M1), function(m) {
         ifelse(is.na(y_grp[,m]), 1, rho_grp[[m]][g, y_grp[,m]])
       }), 1, prod)
       for (c in seq_len(C)) {
-        # TOL 항목 확률 곱
+        # TOL 문항 확률의 곱
         pr_tol <- apply(sapply(seq_len(M2), function(m) {
           ifelse(is.na(y_tol[,m]), 1, rho_tol[[m]][c, y_tol[,m]])
         }), 1, prod)
@@ -68,34 +68,33 @@ em_latent_group <- function(y_grp, y_tol, G = 3, C = 4,
       }
     }
     denom      <- apply(tau, 1, sum)
-    tau        <- sweep(tau, 1, denom, "/")   # posterior 계산
+    tau        <- sweep(tau, 1, denom, "/")   # 사후확률
     loglik_new <- sum(log(denom))
     if (abs(loglik_new - loglik) < eps) break
     loglik <- loglik_new
     
     # ---------------------- M-step ------------------------
-    # 1) delta 업데이트: 전체 데이터에서 그룹 g에 속할 posterior 합의 평균
+    # 1) delta 갱신: 집단 g에 속할 사후확률의 평균
     delta <- apply(tau, 2, sum) / N
     
-    # 2) gamma 업데이트: 그룹 g 내에서 클래스 c의 posterior 비율
+    # 2) gamma 갱신: 집단 g 안에서 계층 c의 사후확률 비율
     for (g in seq_len(G)) {
       gamma[g, ] <- colSums(tau[, g, , drop = FALSE]) /
                     sum(tau[, g, , drop = FALSE])
     }
     
-    # 3) rho_grp 업데이트: 각 grp 항목 m, 그룹 g일 때 response k 확률
+    # 3) rho_grp 갱신: 집단 g의 STATUS 문항 m 응답 k 확률
     for (m in seq_len(M1)) {
-      obs <- !is.na(y_grp[, m])  # 결측 아닌 케이스만
+      obs <- !is.na(y_grp[, m])  # 응답한 사례만
       for (g in seq_len(G)) {
-        # tau[obs, g, ]를 클래스 차원에서 합산 → 각 i가 g그룹일 확률
-        # 이 확률을 y_grp(obs,m)==k 인 경우만 골라 더함
+        # 응답자별 집단 g 사후확률을 응답 범주 k별로 합산
         counts <- tapply(
           X = rowSums(tau[obs, g, , drop = FALSE]), 
           INDEX = y_grp[obs, m], 
           FUN = sum
         )
         counts[is.na(counts)] <- 0
-        # 벡터화: response k별 누적 posterior
+        # 범주별 합계를 길이 r1[m] 벡터로
         v <- rep(0, r1[m])
         v[as.integer(names(counts))] <- counts
         # 정규화
@@ -103,11 +102,11 @@ em_latent_group <- function(y_grp, y_tol, G = 3, C = 4,
       }
     }
     
-    # 4) rho_tol 업데이트: 각 tol 항목 m, 클래스 c일 때 response k 확률
+    # 4) rho_tol 갱신: 계층 c의 TOL 문항 m 응답 k 확률
     for (m in seq_len(M2)) {
       obs <- !is.na(y_tol[, m])
       for (c in seq_len(C)) {
-        # tau[obs, , c]를 그룹 차원에서 합산 → 각 i가 c클래스일 확률
+        # 응답자별 계층 c 사후확률을 응답 범주 k별로 합산
         counts <- tapply(
           X = rowSums(tau[obs, , c, drop = FALSE]),
           INDEX = y_tol[obs, m],

@@ -18,7 +18,7 @@ library(semPlot)  # 경로도
 data <- read_excel("data.xlsx")
 dim(data)  # 232명, 25개 변수
 
-# 분석에 쓰는 22개 문항만 따로 둔다 (응답자 번호, 성별, 나이 제외)
+# 분석에 쓰는 22개 문항만 별도 저장 (응답자 번호, 성별, 나이 제외)
 item_cols <- c(paste0("EX", 1:8), paste0("MD", 1:4),
                paste0("IE", 1:5), paste0("IC", 1:5))
 items <- as.data.frame(data[, item_cols])

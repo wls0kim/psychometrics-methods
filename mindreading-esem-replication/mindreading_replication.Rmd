@@ -34,26 +34,26 @@ str(dat)
 ### 2. 함수 생성
 
 ```{r}
-`%ni%` <- Negate(`%in%`) #논리값을 반대로 뒤집는 함수 생성
+`%ni%` <- Negate(`%in%`) # 논리값을 반대로 뒤집는 함수 생성
 
-#상관계수 함수 생성
+# 상관계수 함수 생성
 corstar <- function(x){ 
-  x <- as.matrix(x) #x 행렬로 변환
-  R <- rcorr(x)$r #x의 상관계수 행렬 생성
-  p <- rcorr(x)$P #x의 상관계수 유의성 검정 결과(p-value)
+  x <- as.matrix(x) # x 행렬로 변환
+  R <- rcorr(x)$r # x의 상관계수 행렬 생성
+  p <- rcorr(x)$P # x의 상관계수 유의성 검정 결과(p-value)
   mystars <- ifelse(p < .001, "***", 
                     ifelse(p < .01, "**", ifelse(p < .05, "*", 
-                                                 ifelse(p < .10, "?", " ")))) #p값에 따른 별 할당
-  R <- format(round(cbind(rep(-1.11, ncol(x)), R), 2))[,-1] #소수점 두자리 반올림
-  Rnew <- matrix(paste(R, mystars, sep=""), ncol=ncol(x)) #상관계수, 별표 결합하여 새 행렬 Rnew 생성
-  diag(Rnew) <- paste(diag(R), " ", sep="") #대각선에 별표 제거
+                                                 ifelse(p < .10, "?", " ")))) # p값에 따른 별 할당
+  R <- format(round(cbind(rep(-1.11, ncol(x)), R), 2))[,-1] # 소수점 두자리 반올림
+  Rnew <- matrix(paste(R, mystars, sep=""), ncol=ncol(x)) # 상관계수, 별표 결합하여 새 행렬 Rnew 생성
+  diag(Rnew) <- paste(diag(R), " ", sep="") # 대각선에 별표 제거
   rownames(Rnew) <- colnames(x)
   colnames(Rnew) <- paste(colnames(x), "", sep="") 
-  Rnew <- as.matrix(Rnew) #행렬로 변환
-  Rnew[upper.tri(Rnew, diag = TRUE)] <- "" #대각선과 그 위 공백으로 설정
-  Rnew <- as.data.frame(Rnew)  #데이터 프레임으로 변환
-  Rnew <- cbind(Rnew[1:length(Rnew)-1]) #마지막 열 제외한 모든 열 선택
-  return(Rnew)  #반환
+  Rnew <- as.matrix(Rnew) # 행렬로 변환
+  Rnew[upper.tri(Rnew, diag = TRUE)] <- "" # 대각선과 그 위 공백으로 설정
+  Rnew <- as.data.frame(Rnew)  # 데이터 프레임으로 변환
+  Rnew <- cbind(Rnew[1:length(Rnew)-1]) # 마지막 열 제외한 모든 열 선택
+  return(Rnew)  # 반환
 }
 
 # 표에 쓰는 숫자를 학술지 표기 방식으로 바꾼다: 0.xx → .xx, 음수 부호는 -- 로 표시
@@ -74,18 +74,18 @@ for (d in c("output/ca", "output/mplus")) dir.create(d, recursive = TRUE, showWa
 
 ```{r}
 list.ACME_ce <- c("ACME_1", "ACME_3", "ACME_4", "ACME_9", "ACME_14", "ACME_15",
-                  "ACME_16","ACME_25","ACME_31","ACME_33","ACME_34","ACME_35") #인지적 공감
+                  "ACME_16","ACME_25","ACME_31","ACME_33","ACME_34","ACME_35") # 인지적 공감
 list.BESSI_pt <- c("BESSI_2", "BESSI_34", "BESSI_66", "BESSI_98", "BESSI_130", 
-                   "BESSI_162") #관점 취하기
+                   "BESSI_162") # 관점 취하기
 list.EQ_ce <- c("EQ_19", "EQ_25", "EQ_26", "EQ_41", "EQ_44", "EQ_52", "EQ_54", 
-                "EQ_55", "EQ_58") #인지적 공감
-list.FIMI <- c("FIMI_1","FIMI_2","FIMI_3","FIMI_4") #마음이해
+                "EQ_55", "EQ_58") # 인지적 공감
+list.FIMI <- c("FIMI_1","FIMI_2","FIMI_3","FIMI_4") # 마음이해
 list.MentS_om <- c("MENTS_2","MENTS_3","MENTS_5","MENTS_6","MENTS_10","MENTS_12",
-                   "MENTS_20","MENTS_23","MENTS_25","MENTS_28") #마음화
+                   "MENTS_20","MENTS_23","MENTS_25","MENTS_28") # 마음화
 list.CAMSQ_oc <- c("CAMSQ_2", "CAMSQ_3", "CAMSQ_6", "CAMSQ_8", "CAMSQ_10", 
-                   "CAMSQ_12", "CAMSQ_15", "CAMSQ_17", "CAMSQ_18", "CAMSQ_19") #타인 확신
+                   "CAMSQ_12", "CAMSQ_15", "CAMSQ_17", "CAMSQ_18", "CAMSQ_19") # 타인 확신
 list.RFQ18_o <- c("RFQ18_1","RFQ18_2","RFQ18_3","RFQ18_4","RFQ18_5","RFQ18_6",
-                  "RFQ18_7","RFQ18_8","RFQ18_9") #타인 마음화
+                  "RFQ18_7","RFQ18_8","RFQ18_9") # 타인 마음화
 ```
 
 ### 5. 과제기반 마음읽기
@@ -107,24 +107,24 @@ list.mr.c <- paste0("MR_c_", 1:6)
 ### 7. 인식된 과제 성과
 
 ```{r}
-list.pp.mra <- c("PP_GEMOK","PP_MASC","PP_PPT","PP_RMET") #인식된 마음읽기 과제 성과
-list.pp.gca <- c("PP_MR","PP_VR","PP_VOC") #인식된 일반인지기능
+list.pp.mra <- c("PP_GEMOK","PP_MASC","PP_PPT","PP_RMET") # 인식된 마음읽기 과제 성과
+list.pp.gca <- c("PP_MR","PP_VR","PP_VOC") # 인식된 일반인지기능
 ```
 
 ### 8. 심리사회적 기능
 
 ```{r}
-list.LSNS <- paste0("LSNS_", 7:12) #사회적 네트워크 크기
-list.IIP32 <- paste0("IIP32_", 1:32) #대인관계
-list.PDS <- paste0("PDS_", 1:14) #성격장애
-list.SSFQ <- paste0("SSFQ_", 1:5) #사회적 기능
+list.LSNS <- paste0("LSNS_", 7:12) # 사회적 네트워크 크기
+list.IIP32 <- paste0("IIP32_", 1:32) # 대인관계
+list.PDS <- paste0("PDS_", 1:14) # 성격장애
+list.SSFQ <- paste0("SSFQ_", 1:5) # 사회적 기능
 list.NCP_ext <- c("NCP_5", "NCP_6", "NCP_12", "NCP_13", "NCP_16", "NCP_17", 
-                  "NCP_22", "NCP_24", "NCP_25") #성격의 부정적 결과
+                  "NCP_22", "NCP_24", "NCP_25") # 성격의 부정적 결과
 list.NCP_int <- c("NCP_1", "NCP_2", "NCP_3", "NCP_4", "NCP_19", "NCP_21",
-                  "NCP_26", "NCP_27") #성격의 부정적 결과
-list.NCP_occ <- c("NCP_8", "NCP_9", "NCP_11", "NCP_14", "NCP_15") #성격의 부정적 결과
-list.SCLK9 <- paste0("SCL_", 1:9) #현재 정신장애 증상
-list.WHODAS_D4 <- paste0("WHODAS_D4_", 1:5) #WHO 장애
+                  "NCP_26", "NCP_27") # 성격의 부정적 결과
+list.NCP_occ <- c("NCP_8", "NCP_9", "NCP_11", "NCP_14", "NCP_15") # 성격의 부정적 결과
+list.SCLK9 <- paste0("SCL_", 1:9) # 현재 정신장애 증상
+list.WHODAS_D4 <- paste0("WHODAS_D4_", 1:5) # WHO 장애
 ```
 
 ### 9. 긍정적 자기평가
@@ -157,18 +157,18 @@ list.bessi.in <- c("BESSI45_5", "BESSI45_10", "BESSI45_15", "BESSI45_20",
 
 ```{r}
 list.sr <- c( "ACME_ce", "BESSI_pt", "CAMSQ_oc","EQ_ce", "FIMI", "MentS_om",
-              "RFQ18_o", "SE_MRA") #자기보고 마음읽기
+              "RFQ18_o", "SE_MRA") # 자기보고 마음읽기
 list.sr2 <- c( "ACME_ce", "BESSI_pt", "CAMSQ_oc","EQ_ce", "FIMI", "MentS_om",
-               "RFQ18_o") #자기보고 마음읽기
+               "RFQ18_o") # 자기보고 마음읽기
 list.sr_z <- c("ACME_ce_z","BESSI_pt_z", "CAMSQ_oc_z", "EQ_ce_z","FIMI_z",
-               "MentS_om_z", "RFQ18_o_z", "SE_MRA_z")  #자기보고 마음읽기 z점수
-list.mra.task.c <- c("GEMOK","MASC","PPT","RMET" ) #과제기반 마음읽기
-list.mra.task.c2 <- c("GEMOK","MASC","RMET") #과제기반 마음읽기
-list.GCA_gs <- c("MR","VR","VOC") #일반인지능력
+               "MentS_om_z", "RFQ18_o_z", "SE_MRA_z")  # 자기보고 마음읽기 z점수
+list.mra.task.c <- c("GEMOK","MASC","PPT","RMET" ) # 과제기반 마음읽기
+list.mra.task.c2 <- c("GEMOK","MASC","RMET") # 과제기반 마음읽기
+list.GCA_gs <- c("MR","VR","VOC") # 일반인지능력
 list.sr.items <- c(list.ACME_ce, list.BESSI_pt, list.CAMSQ_oc, list.EQ_ce, 
-                   list.FIMI, list.MentS_om,list.RFQ18_o, "SE_MRA") #자기보고 마음읽기 문항
+                   list.FIMI, list.MentS_om,list.RFQ18_o, "SE_MRA") # 자기보고 마음읽기 문항
 list.ipsf <- c("LSNS","IIP32","NCP_int","NCP_ext","NCP_occ",
-               "PDS","SCLK9","SSFQ","WHODAS_D4") #심리사회적 기능
+               "PDS","SCLK9","SSFQ","WHODAS_D4") # 심리사회적 기능
 ```
 
 ### 11. parcel 리스트 생성
@@ -185,8 +185,8 @@ list.VOC <- c("VOC_parc_1", "VOC_parc_2", "VOC_parc_3")
 ### 12. 데이터 전처리
 
 ```{r}
-mod_PPT_p <- '' #변수 초기화
-dat$PPT_mm <- dat$PPT #열 복사
+mod_PPT_p <- '' # 변수 초기화
+dat$PPT_mm <- dat$PPT # 열 복사
 ```
 
 ## 3. 측정 도구
@@ -595,23 +595,23 @@ mod_bifactor_tasks <- 'TB.f =~ a*MASC_parc_1 + a*MASC_parc_2 + a*MASC_parc_3 +
                   TB.f ~~ 0*MASC.f + 0*GEMOK.f + 0*RMET.f
                   MASC.f ~~ 0*GEMOK.f + 0*RMET.f
                   GEMOK.f ~~ 0*RMET.f'
-#TB.f: 모든 과제의 공통 요인으로, 각 과제마다 고유의 부하량 a, b, c 부여
-#MASC, GEMOK, RMET: 과제별 요인(parcel 사용)
-#요인간 상관 0으로 설정
+# TB.f: 모든 과제의 공통 요인으로, 각 과제마다 고유의 부하량 a, b, c 부여
+# MASC, GEMOK, RMET: 과제별 요인(parcel 사용)
+# 요인간 상관 0으로 설정
 
-fit_bifactor_tasks <- cfa(mod_bifactor_tasks, estimator = "MLR", orthogonal = T, data = dat) #MLR 추정법 사용하여 CFA 모델 적합
-summary(fit_bifactor_tasks, standardized = T, fit.measures = T) #모델 요약 결과(표준화된 경로 계수, 적합도 지수)
+fit_bifactor_tasks <- cfa(mod_bifactor_tasks, estimator = "MLR", orthogonal = T, data = dat) # MLR 추정법 사용하여 CFA 모델 적합
+summary(fit_bifactor_tasks, standardized = T, fit.measures = T) # 모델 요약 결과(표준화된 경로 계수, 적합도 지수)
 ```
 
 ## 6. 타당도 검사
 ```{r}
-mod_gca_pp_si     <- 'PP.GCA.f =~ PP_VOC + PP_MR + PP_VR' #인식된 일반인지기능
-mod_mra_pp_si     <- 'PP.MRA.f =~ PP_MASC + PP_PPT + PP_GEMOK + PP_RMET' #인식된 마음읽기 과제 성과
-mod_GPSE_si      <- 'GPSE.f =~ BESSI45_emores + BESSI45_soceng + BESSI45_innova + BESSI45_selman' #긍정적 자기평가
-mod_gca_tasks_si <- 'GCA.f =~ VOC + MR + VR' #일반인지기능
-mod_mra_tasks_si <- 'TB.f =~ MASC + GEMOK + RMET + PPT' #과제기반 마음읽기
-mod_mra_sr_si    <- 'SR.f =~ CAMSQ_oc + ACME_ce + EQ_ce + RFQ18_o + MentS_om' #자기보고 마음읽기
-mod_psf_si     <- 'PSF.f =~ LSNS + IIP32 + NCP + PDS + SCLK9 + SSFQ + WHODAS_D4' #심리사회기능
+mod_gca_pp_si     <- 'PP.GCA.f =~ PP_VOC + PP_MR + PP_VR' # 인식된 일반인지기능
+mod_mra_pp_si     <- 'PP.MRA.f =~ PP_MASC + PP_PPT + PP_GEMOK + PP_RMET' # 인식된 마음읽기 과제 성과
+mod_GPSE_si      <- 'GPSE.f =~ BESSI45_emores + BESSI45_soceng + BESSI45_innova + BESSI45_selman' # 긍정적 자기평가
+mod_gca_tasks_si <- 'GCA.f =~ VOC + MR + VR' # 일반인지기능
+mod_mra_tasks_si <- 'TB.f =~ MASC + GEMOK + RMET + PPT' # 과제기반 마음읽기
+mod_mra_sr_si    <- 'SR.f =~ CAMSQ_oc + ACME_ce + EQ_ce + RFQ18_o + MentS_om' # 자기보고 마음읽기
+mod_psf_si     <- 'PSF.f =~ LSNS + IIP32 + NCP + PDS + SCLK9 + SSFQ + WHODAS_D4' # 심리사회기능
 # 묶음(parcel) 모형식 mod_*_p는 3장에서 생성
 # 같은 검사의 실제 점수와 인식된 성과 점수의 잔차 상관을 자유모수로 설정
 mod_free_param <- paste0("VOC ~~ PP_VOC", "\n", 
@@ -636,51 +636,51 @@ mod_vt1234 <- paste0(mod_mra_sr_si, "\n",
                   SR.f ~~ b*PP.MRA.f
                   SR.f ~~ c*PP.GCA.f
                   TB.f ~~ d*GCA.f
-                  VT1 := a #자기보고 마음읽기*과제기반 마음읽기 상관
-                  VT2 := d #과제기반 마음읽기*일반인지기능 상관
-                  VT3 := b-a #(자기보고 마음읽기*인식된 마음읽기 과제) - (자기보고 마음읽기*과제기반 마음읽기)
+                  VT1 := a # 자기보고 마음읽기*과제기반 마음읽기 상관
+                  VT2 := d # 과제기반 마음읽기*일반인지기능 상관
+                  VT3 := b-a # (자기보고 마음읽기*인식된 마음읽기 과제) - (자기보고 마음읽기*과제기반 마음읽기)
                   VT4 := b-c') #(자기보고 마음읽기*인식된 마음읽기 과제) - (자기보고 마음읽기 * 인식된 일반인지기능)
 
 # 타당도 검사 1~4용 SEM 적합
-fit_vt1234 <- cfa(mod_vt1234, estimator = "MLR", data = dat) #MLR 추정법 사용하여 CFA 모델 적합
-summary(fit_vt1234, standardized = T, fit.measures = T)#모델 요약 결과(표준화된 경로 계수, 적합도 지수)
+fit_vt1234 <- cfa(mod_vt1234, estimator = "MLR", data = dat) # MLR 추정법 사용하여 CFA 모델 적합
+summary(fit_vt1234, standardized = T, fit.measures = T)  # 모델 요약 결과(표준화된 경로 계수, 적합도 지수)
 
 table.3 <- data.frame(lavInspect(fit_vt1234, "cor.lv"))
 table.3
 write.csv2(table.3, "output/table 3.csv", row.names = T)
 
 # 표준화 추정치와 95% 신뢰구간
-std_vt1234 <- standardizedSolution(fit_vt1234) #SEM모델의 표준화된 solution
+std_vt1234 <- standardizedSolution(fit_vt1234) # SEM모델의 표준화된 solution
 
 # 타당도검사 1-4 출력
-std_vt1234[std_vt1234$label == "VT1",] #자기보고 마음읽기*과제기반 마음읽기 상관
-std_vt1234[std_vt1234$label == "VT2",] #과제기반 마음읽기*일반인지기능 상관
-std_vt1234[std_vt1234$label == "VT3",] #(자기보고 마음읽기*인식된 마음읽기 과제) - (자기보고 마음읽기*과제기반 마음읽기)
-std_vt1234[std_vt1234$label == "VT4",] #(자기보고 마음읽기*인식된 마음읽기 과제) - (자기보고 마음읽기 * 인식된 일반인지기능)
+std_vt1234[std_vt1234$label == "VT1",] # 자기보고 마음읽기*과제기반 마음읽기 상관
+std_vt1234[std_vt1234$label == "VT2",] # 과제기반 마음읽기*일반인지기능 상관
+std_vt1234[std_vt1234$label == "VT3",] # (자기보고 마음읽기*인식된 마음읽기 과제) - (자기보고 마음읽기*과제기반 마음읽기)
+std_vt1234[std_vt1234$label == "VT4",] # (자기보고 마음읽기*인식된 마음읽기 과제) - (자기보고 마음읽기 * 인식된 일반인지기능)
 
 # 타당도검사 5a/b의 SEM 모델 정의 및 적합
-mod_vt5a <- paste0(mod_mra_sr_si, "\n", #자기보고 마음읽기
-                   mod_mra_tasks_si, "\n", #과제기반 마음읽기
-                   mod_gca_tasks_si, "\n", #일반인지기능
-                   mod_mra_pp_si, "\n",  #인식된 마음읽기 과제 성과
-                   mod_gca_pp_si, "\n", #인식된 일반인지기능
-                   mod_GPSE_si, "\n", #긍정적 자기평가
-                   mod_psf_si, "\n", #심리사회기능
+mod_vt5a <- paste0(mod_mra_sr_si, "\n", # 자기보고 마음읽기
+                   mod_mra_tasks_si, "\n", # 과제기반 마음읽기
+                   mod_gca_tasks_si, "\n", # 일반인지기능
+                   mod_mra_pp_si, "\n",  # 인식된 마음읽기 과제 성과
+                   mod_gca_pp_si, "\n", # 인식된 일반인지기능
+                   mod_GPSE_si, "\n", # 긍정적 자기평가
+                   mod_psf_si, "\n", # 심리사회기능
                    mod_free_param, "\n",
-                   "PSF.f ~ VT5a*SR.f + GPSE.f + GCA.f") #자기보고 마음읽기 + 긍정적 자기평가 + 일반인지기능
+                   "PSF.f ~ VT5a*SR.f + GPSE.f + GCA.f") # 자기보고 마음읽기 + 긍정적 자기평가 + 일반인지기능
 
-mod_vt5b <- paste0(mod_mra_sr_si, "\n", #자기보고 마음읽기
-                   mod_mra_tasks_si, "\n", #과제기반 마음읽기
-                   mod_gca_tasks_si, "\n", #일반인지기능
-                   mod_mra_pp_si, "\n",  #인식된 마음읽기 과제 성과
-                   mod_gca_pp_si, "\n", #인식된 일반인지기능
-                   mod_GPSE_si, "\n", #긍정적 자기평가
-                   mod_psf_si, "\n", #심리사회기능
+mod_vt5b <- paste0(mod_mra_sr_si, "\n", # 자기보고 마음읽기
+                   mod_mra_tasks_si, "\n", # 과제기반 마음읽기
+                   mod_gca_tasks_si, "\n", # 일반인지기능
+                   mod_mra_pp_si, "\n",  # 인식된 마음읽기 과제 성과
+                   mod_gca_pp_si, "\n", # 인식된 일반인지기능
+                   mod_GPSE_si, "\n", # 긍정적 자기평가
+                   mod_psf_si, "\n", # 심리사회기능
                    mod_free_param, "\n",
-                   "PSF.f ~ VT5b*TB.f + GPSE.f + GCA.f") #과제기반 마음읽기 ~ 긍정적 자기평가 + 일반인지기능
+                   "PSF.f ~ VT5b*TB.f + GPSE.f + GCA.f") # 과제기반 마음읽기 ~ 긍정적 자기평가 + 일반인지기능
 
-fit_vt5a <- cfa(mod_vt5a, estimator = "MLR", data = dat) #MLR 추정법 사용하여 CFA 모델 적합
-fit_vt5b <- cfa(mod_vt5b, estimator = "MLR", data = dat) #MLR 추정법 사용하여 CFA 모델 적합
+fit_vt5a <- cfa(mod_vt5a, estimator = "MLR", data = dat) # MLR 추정법 사용하여 CFA 모델 적합
+fit_vt5b <- cfa(mod_vt5b, estimator = "MLR", data = dat) # MLR 추정법 사용하여 CFA 모델 적합
 
 
 std_vt5a <- standardizedSolution(fit_vt5a)
@@ -693,39 +693,39 @@ std_vt5b[std_vt5b$label == "VT5b",]
 
 ### 1. 컬러 그림
 ```{r}
-mod_fig2 <- paste0(mod_mra_sr_si, "\n", #자기보고 마음읽기
-                   mod_mra_tasks_si, "\n", #과제기반 마음읽기
-                   mod_gca_tasks_si, "\n", #일반인지기능
-                   mod_mra_pp_si, "\n", #인식된 마음읽기 과제 성과
-                   mod_gca_pp_si, "\n", #인식된 일반인지기능
-                   mod_GPSE_si, "\n", #긍정적 자기평가
-                   mod_psf_si, "\n", #심리사회기능
+mod_fig2 <- paste0(mod_mra_sr_si, "\n", # 자기보고 마음읽기
+                   mod_mra_tasks_si, "\n", # 과제기반 마음읽기
+                   mod_gca_tasks_si, "\n", # 일반인지기능
+                   mod_mra_pp_si, "\n", # 인식된 마음읽기 과제 성과
+                   mod_gca_pp_si, "\n", # 인식된 일반인지기능
+                   mod_GPSE_si, "\n", # 긍정적 자기평가
+                   mod_psf_si, "\n", # 심리사회기능
                    mod_free_param, "\n",
-                   "PSF.f ~ sl.sr*SR.f + sl.ps*GPSE.f") #심리사회기능 ~ 자기보고 마음읽기 + 긍정적 자기평가
+                   "PSF.f ~ sl.sr*SR.f + sl.ps*GPSE.f") # 심리사회기능 ~ 자기보고 마음읽기 + 긍정적 자기평가
 
-fit_fig2 <- sem(mod_fig2, estimator = "MLR", data = dat) #위 모델 적합
-summary(fit_fig2, standardized = T) #모델 요약
-std_fig2 <- standardizedSolution(fit_fig2) #표준화 solution 도출
-std_fig2[std_fig2$label == "sl.sr",] #계수 확인
-std_fig2[std_fig2$label == "sl.ps",] #계수 확인
+fit_fig2 <- sem(mod_fig2, estimator = "MLR", data = dat) # 위 모델 적합
+summary(fit_fig2, standardized = T) # 모델 요약
+std_fig2 <- standardizedSolution(fit_fig2) # 표준화 solution 도출
+std_fig2[std_fig2$label == "sl.sr",] # 계수 확인
+std_fig2[std_fig2$label == "sl.ps",] # 계수 확인
 
-pre_fig2 <- predict(fit_fig2) #fit_fig2 예측 수행
+pre_fig2 <- predict(fit_fig2) # fit_fig2 예측 수행
 fig_df <- dat
-fig_df$SR_MRA_gs_round <- round_any(pre_fig2[,"SR.f"],0.5) #자기보고 마음읽기 요인점수를 0.5 단위로 반올림
-fig_df$BESSI45_z_round <- round_any(pre_fig2[,"GPSE.f"],0.5) #긍정적 자기평가 요인점수를 0.5 단위로 반올림
-table(round_any(pre_fig2[,"PSF.f"],0.5)) #심리사회기능 예측값의 분포 요약
+fig_df$SR_MRA_gs_round <- round_any(pre_fig2[,"SR.f"],0.5) # 자기보고 마음읽기 요인점수를 0.5 단위로 반올림
+fig_df$BESSI45_z_round <- round_any(pre_fig2[,"GPSE.f"],0.5) # 긍정적 자기평가 요인점수를 0.5 단위로 반올림
+table(round_any(pre_fig2[,"PSF.f"],0.5)) # 심리사회기능 예측값의 분포 요약
 
 
 # 두 예측 점수 조합별 사례 수 확인
 crosstab(fig_df, row.vars = "BESSI45_z_round", 
-         col.vars = "SR_MRA_gs_round", type = "f") #자기보고 마음읽기*긍정적 자기평가(빈도)
+         col.vars = "SR_MRA_gs_round", type = "f") # 자기보고 마음읽기*긍정적 자기평가(빈도)
 
 BESSI45_z <- c(rep(-1.5, 1), 
                rep(-1, 10),
                rep(-0.5, 11), 
                rep(0.0, 9), 
                rep(0.5, 8), 
-               rep(1, 6)) #그림에 찍을 점의 좌표 (위 교차표에서 사례가 있는 칸)
+               rep(1, 6)) # 그림에 찍을 점의 좌표 (위 교차표에서 사례가 있는 칸)
 SR_MRA_gs <- c(-1,
                -3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1.0, 1.5,
                -3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2,
@@ -783,11 +783,11 @@ save_fig2(plot_bw, "fig2_bw")
 
 ### 1. 표 s7a. 상관관계
 ```{r}
-corstar(dat[,c(list.sr, list.mra.task.c)]) #자기보고 마음읽기*과제기반 마음읽기 상관분석
+corstar(dat[,c(list.sr, list.mra.task.c)]) # 자기보고 마음읽기*과제기반 마음읽기 상관분석
 
-cor.table.s7a <- cor(dat[,c(list.sr, list.mra.task.c)]) #상관계수 행렬 저장
-table.s7a <- data.frame(format(round(cor.table.s7a, 2), nsmall = 2)) #소수점 세 번째에서 반올림
-table.s7a[upper.tri(table.s7a)] <- NA #대각선 이상 공백 처리
+cor.table.s7a <- cor(dat[,c(list.sr, list.mra.task.c)]) # 상관계수 행렬 저장
+table.s7a <- data.frame(format(round(cor.table.s7a, 2), nsmall = 2)) # 소수점 세 번째에서 반올림
+table.s7a[upper.tri(table.s7a)] <- NA # 대각선 이상 공백 처리
 
 table.s7a
 write.csv2(table.s7a, "output/table s7a.csv", row.names = T)
@@ -799,7 +799,7 @@ expand.ts7b <- as.data.frame(t(combn(c(list.sr2, list.mra.task.c2), 2)))
 
 table.s7b <- data.frame(matrix(NA, 
                                nrow = length(c(list.sr, list.mra.task.c)),
-                               ncol = length(c(list.sr, list.mra.task.c)))) #표 생성
+                               ncol = length(c(list.sr, list.mra.task.c)))) # 표 생성
 rownames(table.s7b) <- c(list.sr, list.mra.task.c)
 colnames(table.s7b) <- c(list.sr, list.mra.task.c)
 
@@ -811,20 +811,19 @@ for (i in 1:nrow(expand.ts7b)) {
   indi.var2 <- get(paste0("list.",var2))
   print(c(var1, var2))
   
-  #### 
   mod.loop <- paste0(
     paste0(var1,".f", " =~ ",paste0(indi.var1, collapse = " + "), "\n"), 
     paste0(var2,".f", " =~ ",paste0(indi.var2, collapse = " + "), "\n"),
     paste0(var1,".f", " ~~ par*", var2,".f"))
   
   
-  fit.sem <- sem(mod.loop, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = dat) #MLR사용하여 구조방정식 모델 적합(결측치 처리=fiml, 잠재변수의 표준화된 계수)
+  fit.sem <- sem(mod.loop, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = dat) # MLR사용하여 구조방정식 모델 적합(결측치 처리=fiml, 잠재변수의 표준화된 계수)
   summary.sem <- standardizedSolution(fit.sem)
   
-  table.s7b[var2,var1] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2) #par이 붙은 파라미터 추정치 즉, 상관계수 확인
+  table.s7b[var2,var1] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2) # par이 붙은 파라미터 추정치 즉, 상관계수 확인
   
   if (summary.sem[summary.sem$label == "par", "pvalue"] < .05) {
-    table.s7b[var2,var1] <- paste0(table.s7b[var2,var1],"*") #*추가
+    table.s7b[var2,var1] <- paste0(table.s7b[var2,var1],"*") # *추가
   }
   
 }  
@@ -840,8 +839,8 @@ write.csv2(table.s7b, "output/table s7b.csv", row.names = T)
 
 ### 1. 표 s8a. 상관관계
 ```{r}
-cor.table.s8a <- cor(dat[,c(list.mra.task.c, c("GCA_gs",list.GCA_gs))]) #과제기반 마음읽기, 일반인지기능 상관분석
-table.s8a <- data.frame(format(round(cor.table.s8a, 2), nsmall = 2)) #소수점 세 번째에서 반올림
+cor.table.s8a <- cor(dat[,c(list.mra.task.c, c("GCA_gs",list.GCA_gs))]) # 과제기반 마음읽기, 일반인지기능 상관분석
+table.s8a <- data.frame(format(round(cor.table.s8a, 2), nsmall = 2)) # 소수점 세 번째에서 반올림
 table.s8a[5:8,1:4]
 
 write.csv2(table.s8a[5:8,1:4], "output/table s8a.csv", row.names = T)
@@ -865,17 +864,16 @@ for (i in 1:nrow(expand.ts8b)) {
   indi.var2 <- get(paste0("list.",var2))
   print(c(var1, var2))
   
-  #### 
   mod.loop <- paste0(
     paste0(var2,".f", " =~ ",paste0(indi.var2, collapse = " + "), "\n"),
     paste0(var1,".f", " =~ ",paste0(indi.var1, collapse = " + "), "\n"),
     paste0(var1,".f", " ~~ par*", var2,".f"))
   
   
-  fit.sem <- sem(mod.loop, estimator = "MLR", std.lv = TRUE, data = dat) #MLR사용하여 구조방정식 모델 적합
+  fit.sem <- sem(mod.loop, estimator = "MLR", std.lv = TRUE, data = dat) # MLR사용하여 구조방정식 모델 적합
   summary.sem <- standardizedSolution(fit.sem)
   
-  table.s8b[var2,var1] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2) #par이 붙은 파라미터 추정치 즉, 상관계수 확인
+  table.s8b[var2,var1] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2) # par이 붙은 파라미터 추정치 즉, 상관계수 확인
   
   if (summary.sem[summary.sem$label == "par", "pvalue"] < .05) {
     table.s8b[var2,var1] <- paste0(table.s8b[var2,var1],"*")
@@ -893,11 +891,11 @@ write.csv2(table.s8b, "output/table s8b.csv", row.names = T)
 
 ### 1. 표 s9a. 회귀모형
 ```{r}
-expand.ts9a <- expand.grid(c(list.pp.mra, list.pp.gca),c(list.sr_z)) #자기보고 마음읽기, 인식된 마음읽기 과제 성과, 인식된 일반인지기능
+expand.ts9a <- expand.grid(c(list.pp.mra, list.pp.gca),c(list.sr_z)) # 자기보고 마음읽기, 인식된 마음읽기 과제 성과, 인식된 일반인지기능
 
-table.s9a <- data.frame(matrix(NA, #초기 행렬 생성
-                               nrow = length(c(list.pp.mra,  list.pp.gca)), #행: 인식된 성과
-                               ncol = length(c(list.sr_z)))) #열: 자기보고 마음읽기
+table.s9a <- data.frame(matrix(NA, # 초기 행렬 생성
+                               nrow = length(c(list.pp.mra,  list.pp.gca)), # 행: 인식된 성과
+                               ncol = length(c(list.sr_z)))) # 열: 자기보고 마음읽기
 rownames(table.s9a) <- c(list.pp.mra, list.pp.gca)
 colnames(table.s9a) <- c(list.sr_z)
 
@@ -906,10 +904,10 @@ for (i in 1:nrow(expand.ts9a)) {
   print(paste(as.character(expand.ts9a[i,]$Var1), as.character(expand.ts9a[i,]$Var2)))
   criterion <- as.character(expand.ts9a[i,]$Var1)
   mma <- as.character(expand.ts9a[i,]$Var2)
-  mod.loop <- paste0(criterion, '_z', '~', mma) #회귀 모형
-  fit.sem <- sem(mod.loop, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = dat) #MLR사용하여 회귀 모델 적합(결측치 처리=fiml, 잠재변수의 표준화된 계수)
+  mod.loop <- paste0(criterion, '_z', '~', mma) # 회귀 모형
+  fit.sem <- sem(mod.loop, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = dat) # MLR사용하여 회귀 모델 적합(결측치 처리=fiml, 잠재변수의 표준화된 계수)
   summary.sem <- standardizedSolution(fit.sem)
-  table.s9a[criterion,mma] <- format(round(summary.sem[summary.sem$op == "~" & summary.sem$rhs == paste0(mma), "est.std"],2), nsmall = 2) #회귀계수의 표준화값
+  table.s9a[criterion,mma] <- format(round(summary.sem[summary.sem$op == "~" & summary.sem$rhs == paste0(mma), "est.std"],2), nsmall = 2) # 회귀계수의 표준화값
   
   if (summary.sem[summary.sem$op == "~" & summary.sem$rhs == paste0(mma), "pvalue"] < .05) {
     table.s9a[criterion,mma] <- paste0(table.s9a[criterion,mma],"*")
@@ -939,16 +937,15 @@ for (i in 1:nrow(expand.ts9b)) {
   indi.var2 <- get(paste0("list.",var2))
   print(c(var1, var2))
   
-  #### 
   mod.loop <- paste0(
     paste0(var2,".f", " =~ ",paste0(indi.var2, collapse = " + "), "\n"),
     paste0(var1, " ~~ par*", var2,".f"))
   
   
-  fit.sem <- sem(mod.loop, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = dat) #MLR사용하여 구조방정식 모델 적합
+  fit.sem <- sem(mod.loop, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = dat) # MLR사용하여 구조방정식 모델 적합
   summary.sem <- standardizedSolution(fit.sem)
   
-  table.s9b[var1,var2] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2) #par이 붙은 파라미터 추정치 즉, 상관계수 확인
+  table.s9b[var1,var2] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2) # par이 붙은 파라미터 추정치 즉, 상관계수 확인
   
    if (summary.sem[summary.sem$label == "par", "pvalue"] < .05) {
     table.s9b[var1,var2] <- paste0(table.s9b[var1,var2],"*")
@@ -967,11 +964,11 @@ write.csv2(table.s9b, "output/table s9b.csv", row.names = T)
 
 ### 1. 표 s10a. 자기보고 마음읽기 구조방정식(긍정적 자기평가, 일반인지기능의 영향을 배제한 심리사회적 기능 예측)
 ```{r}
-expand.ts10a <- expand.grid(list.ipsf,c(list.sr)) #심리사회적 기능, 자기보고 마음읽기
+expand.ts10a <- expand.grid(list.ipsf,c(list.sr)) # 심리사회적 기능, 자기보고 마음읽기
 
-table.s10a <- data.frame(matrix(NA, #초기 행렬 생성
-                                nrow = length(list.ipsf), #행: 심리사회적 기능
-                                ncol = length(c(list.sr)))) #열: 자기보고 마음읽기
+table.s10a <- data.frame(matrix(NA, # 초기 행렬 생성
+                                nrow = length(list.ipsf), # 행: 심리사회적 기능
+                                ncol = length(c(list.sr)))) # 열: 자기보고 마음읽기
 rownames(table.s10a) <- list.ipsf
 colnames(table.s10a) <- c(list.sr)
 
@@ -979,10 +976,10 @@ colnames(table.s10a) <- c(list.sr)
 for (i in 1:nrow(expand.ts10a)) {
   
   print(paste(as.character(expand.ts10a[i,]$Var1), as.character(expand.ts10a[i,]$Var2)))
-  criterion <- as.character(expand.ts10a[i,]$Var1) #예측변수
-  mma <- as.character(expand.ts10a[i,]$Var2) #종속변수
+  criterion <- as.character(expand.ts10a[i,]$Var1) # 예측변수
+  mma <- as.character(expand.ts10a[i,]$Var2) # 종속변수
   
-  mod.loop <- paste0(criterion, '~', 'GCA_gs + BESSI45_z + c2*', mma, '\n') #추가 독립변수: 일반인지기능, 긍정적 자기평가
+  mod.loop <- paste0(criterion, '~', 'GCA_gs + BESSI45_z + c2*', mma, '\n') # 추가 독립변수: 일반인지기능, 긍정적 자기평가
   fit.sem <- sem(mod.loop, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = dat)
   summary.sem <- standardizedSolution(fit.sem)
   
@@ -1004,7 +1001,7 @@ write.csv2(table.s10a, "output/table s10a.csv", row.names = T)
 
 ### 2. 표 s10b. 자기보고 마음읽기 잠재 부분 회귀(긍정적 자기평가, 일반인지기능의 영향을 배제한 심리사회적 기능 예측)
 ```{r}
-expand.ts10b <- expand.grid(list.ipsf,c(list.sr2))  #심리사회적 기능, 자기보고 마음읽기
+expand.ts10b <- expand.grid(list.ipsf,c(list.sr2))  # 심리사회적 기능, 자기보고 마음읽기
 
 table.s10b <- data.frame(matrix(NA, 
                                 nrow = length(list.ipsf),
@@ -1020,18 +1017,17 @@ for (i in 1:nrow(expand.ts10b)) {
   indi.var2 <- get(paste0("list.",var2))
   print(c(var1, var2))
   
-  #### 
   mod.loop <- paste0(
     paste0(var2,".f", " =~ ",paste0(indi.var2, collapse = " + "), "\n"),
     paste0(var1,".f", " =~ ",paste0(indi.var1, collapse = " + "), "\n"),
     mod_GPSE_si, "\n", mod_gca_tasks_si, "\n",
-    paste0(var1,".f", " ~ par*", var2,".f + GPSE.f + GCA.f")) #추가 독립변수: 긍정적 자기평가, 일반인지기능
+    paste0(var1,".f", " ~ par*", var2,".f + GPSE.f + GCA.f")) # 추가 독립변수: 긍정적 자기평가, 일반인지기능
   
   
-  fit.sem <- sem(mod.loop, estimator = "MLR", std.lv = TRUE, data = dat) #MLR사용하여 구조방정식 모델 적합
+  fit.sem <- sem(mod.loop, estimator = "MLR", std.lv = TRUE, data = dat) # MLR사용하여 구조방정식 모델 적합
   summary.sem <- standardizedSolution(fit.sem)
   summary(fit.sem, standardized = T, fit.measures = T)
-  table.s10b[var1,var2] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2) #par이 붙은 파라미터 추정 확인
+  table.s10b[var1,var2] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2) # par이 붙은 파라미터 추정 확인
   
   if (summary.sem[summary.sem$label == "par", "pvalue"] < .05) {
     table.s10b[var1,var2] <- paste0(table.s10b[var1,var2],"*")
@@ -1047,11 +1043,11 @@ write.csv2(table.s10b, "output/table s10b.csv", row.names = T)
 
 ### 3. 표 s11a. 과제기반 마음읽기 구조방정식(긍정적 자기평가, 일반인지기능의 영향을 배제한 심리사회적 기능 예측)
 ```{r}
-expand.ts11a <- expand.grid(c(list.ipsf),c(list.mra.task.c)) #심리사회적 기능, 과제기반 마음읽기
+expand.ts11a <- expand.grid(c(list.ipsf),c(list.mra.task.c)) # 심리사회적 기능, 과제기반 마음읽기
 
-table.s11a <- data.frame(matrix(NA, #초기 행렬 생성
-                                nrow = length(c(list.ipsf)), #행: 심리사회적 기능
-                                ncol = length(c(list.mra.task.c)))) #열: 과제기반 마음읽기
+table.s11a <- data.frame(matrix(NA, # 초기 행렬 생성
+                                nrow = length(c(list.ipsf)), # 행: 심리사회적 기능
+                                ncol = length(c(list.mra.task.c)))) # 열: 과제기반 마음읽기
 rownames(table.s11a) <- c(list.ipsf)
 colnames(table.s11a) <- c(list.mra.task.c)
 
@@ -1062,7 +1058,7 @@ for (i in 1:nrow(expand.ts11a)) {
   criterion <- as.character(expand.ts11a[i,]$Var1)
   mma <- as.character(expand.ts11a[i,]$Var2)
   
-  mod.loop <- paste0(criterion, '~', mma, '+ GCA_z + BESSI45_z') #추가 독립변수: 일반인지기능, 긍정적 자기평가
+  mod.loop <- paste0(criterion, '~', mma, '+ GCA_z + BESSI45_z') # 추가 독립변수: 일반인지기능, 긍정적 자기평가
   fit.sem <- sem(mod.loop, estimator = "MLR", missing = "fiml", std.lv = TRUE, data = dat)
   summary.sem <- standardizedSolution(fit.sem)
   
@@ -1084,7 +1080,7 @@ write.csv2(table.s11a, "output/table s11a.csv", row.names = T)
 
 ### 4. 표 s11b. 과제기반 마음읽기 잠재 부분 회귀(긍정적 자기평가, 일반인지기능의 영향을 배제한 심리사회적 기능 예측)
 ```{r}
-expand.ts11b <- expand.grid(list.ipsf,c(list.mra.task.c2))  #심리사회적 기능, 과제기반 마음읽기
+expand.ts11b <- expand.grid(list.ipsf,c(list.mra.task.c2))  # 심리사회적 기능, 과제기반 마음읽기
 
 table.s11b <- data.frame(matrix(NA, 
                                 nrow = length(list.ipsf),
@@ -1100,15 +1096,14 @@ for (i in 1:nrow(expand.ts11b)) {
   indi.var2 <- get(paste0("list.",var2))
   print(c(var1, var2))
   
-  #### 
   mod.loop <- paste0(
     paste0(var2,".f", " =~ ",paste0(indi.var2, collapse = " + "), "\n"),
     paste0(var1,".f", " =~ ",paste0(indi.var1, collapse = " + "), "\n"),
     mod_GPSE_si, "\n", mod_gca_tasks_si, "\n",
-    paste0(var1,".f", " ~ par*", var2,".f + GPSE.f + GCA.f")) #추가 독립변수: 긍정적 자기평가, 일반인지기능
+    paste0(var1,".f", " ~ par*", var2,".f + GPSE.f + GCA.f")) # 추가 독립변수: 긍정적 자기평가, 일반인지기능
   
   
-  fit.sem <- sem(mod.loop, estimator = "MLR", std.lv = TRUE, data = dat) #MLR사용하여 구조방정식 모델 적합
+  fit.sem <- sem(mod.loop, estimator = "MLR", std.lv = TRUE, data = dat) # MLR사용하여 구조방정식 모델 적합
   summary.sem <- standardizedSolution(fit.sem)
   summary(fit.sem, standardized = T, fit.measures = T)
   table.s11b[var1,var2] <- format(round(summary.sem[summary.sem$label == "par", "est.std"],2), nsmall = 2)
@@ -1127,11 +1122,11 @@ write.csv2(table.s11b, "output/table s11b.csv", row.names = T)
 
 ## 12. 공통성 분석(회귀 모델에서 독립변수가 종속변수에 기여하는 고유/공통 기여 분해하는 방법)
 ```{r}
-list.predictors <- c("SR_MRA_gs", "GPSE_gs") #예측변수: 자기보고 마음읽기, 긍정적인 자기평가
-dv <- list.ipsf[1] #종속변수: 심리사회적 기능
+list.predictors <- c("SR_MRA_gs", "GPSE_gs") # 예측변수: 자기보고 마음읽기, 긍정적인 자기평가
+dv <- list.ipsf[1] # 종속변수: 심리사회적 기능
 
 # 표본 전체의 공통성 계수 (고유 기여, 공통 기여)
-ca <- commonalityCoefficients(dat, dv = dv, ivlist = list.predictors) #공통성계수 계산 
+ca <- commonalityCoefficients(dat, dv = dv, ivlist = list.predictors) # 공통성계수 계산 
 
 # 부트스트랩 표본별 공통성 계수 4개(예측변수 2개의 고유 기여, 공통 기여, 합계) 재계산
 f.cc <- function(data, indices) {
@@ -1141,28 +1136,28 @@ f.cc <- function(data, indices) {
 
 # 부트스트랩 5,000회 (재현을 위해 시드 고정)
 set.seed(2024)
-boot.commonality_analysis <- boot(data = dat, statistic = f.cc, R = 5000) #5000번 부트스트랩 수행
+boot.commonality_analysis <- boot(data = dat, statistic = f.cc, R = 5000) # 5000번 부트스트랩 수행
 
 # 관측값과 부트스트랩 평균
-results <- data.frame(obs = boot.commonality_analysis$t0, #원래 공통성계수
-                      m = apply(boot.commonality_analysis$t,2,function(x) mean(x))) #부트스트랩 결과의 평균 계산
+results <- data.frame(obs = boot.commonality_analysis$t0, # 원래 공통성계수
+                      m = apply(boot.commonality_analysis$t,2,function(x) mean(x))) # 부트스트랩 결과의 평균 계산
 
 # 편향
-results$bias <- results$m - results$obs #평균 추정치 - 관측된 공통성계수
+results$bias <- results$m - results$obs # 평균 추정치 - 관측된 공통성계수
 
 # 표준오차
-results$se <- apply(boot.commonality_analysis$t,2,function(x) sd(x)) #부트스트랩한 샘플 공통성계수의 표준오차
+results$se <- apply(boot.commonality_analysis$t,2,function(x) sd(x)) # 부트스트랩한 샘플 공통성계수의 표준오차
 
 # 백분위 신뢰구간
-perc <- data.frame(t(sapply(1:nrow(results), FUN = function(x) boot.ci(boot.commonality_analysis, conf = 0.95, type = "perc",index = x)$percent[1,c(4,5)]))) #신뢰구간 계산
+perc <- data.frame(t(sapply(1:nrow(results), FUN = function(x) boot.ci(boot.commonality_analysis, conf = 0.95, type = "perc",index = x)$percent[1,c(4,5)]))) # 신뢰구간 계산
 names(perc) <- c("ll.perc","ul.perc")
 
 # 편향 보정 가속(BCa) 신뢰구간
 bca <- data.frame(t(sapply(1:nrow(results), FUN = function(x) boot.ci(boot.commonality_analysis, conf = 0.95, type = "bca",index = x)$bca[1,c(4,5)])))
-names(bca) <- c("ll.bca","ul.bca") #편향-보정 및 가속 부트스트랩 방법을 사용하여 신뢰구간을 계산(비대칭성, 편향 보정)
+names(bca) <- c("ll.bca","ul.bca") # 편향-보정 및 가속 부트스트랩 방법을 사용하여 신뢰구간을 계산(비대칭성, 편향 보정)
 
 # 결과 표
-results <- data.frame(results,perc,bca) #결과
+results <- data.frame(results,perc,bca) # 결과
 rownames(results) <- c(rownames(ca$CC)[-length(rownames(ca$CC))], "Total")
 
 # 결과 저장

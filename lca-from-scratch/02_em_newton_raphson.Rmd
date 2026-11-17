@@ -21,14 +21,14 @@
 ```{r}
 set.seed(123)
 
-n <- 1000 # 샘플 수
-n_class <- 3 # 잠재 클래스 수
+n <- 1000 # 응답자 수
+n_class <- 3 # 잠재계층 수
 n_item <- 6 # 문항 수
 
-gamma <- c(0.3, 0.4, 0.3) # 클래스 비율
+gamma <- c(0.3, 0.4, 0.3) # 계층 비율
 class_id <- sample(1:n_class, size = n, replace = TRUE, prob = gamma)
 
-# 클래스별 문항-응답 확률
+# 계층별 문항 응답확률
 rho <- matrix(NA, nrow = n_item, ncol = n_class)
 rho[ , 1] <- 0.9 # 1계층: 모든 문항에 "예"일 확률이 높음
 rho[ , 2] <- c(0.9, 0.9, 0.9, 0.1, 0.1, 0.1) # 2계층: 앞 3문항만 높음
@@ -64,7 +64,7 @@ em_lca <- function(Y, n_class = 3, max_iter = 1000, tol = 1e-6,
   n <- nrow(Y)  # 응답자 수
   m <- ncol(Y)  # 문항 수
   
-  # init = "true"이면 true 값을, 아니면 랜덤으로 초기화(실험 조건 2개)
+  # 초기값: init = "true"이면 참값, 아니면 무작위
   gamma <- if (init == "true") init_gamma else rep(1 / n_class, n_class)
   rho <- if (init == "true") init_rho else matrix(runif(m * n_class, 0.2, 0.8), nrow = m)
   
@@ -73,7 +73,7 @@ em_lca <- function(Y, n_class = 3, max_iter = 1000, tol = 1e-6,
   
   for (iter in 1:max_iter) {
     
-    # E-step: 각 클래스별 p_il과 posterior theta 계산
+    # E단계: 계층별 우도(p_il)와 사후확률(theta)
     theta <- sapply(1:n_class, function(l) {
       apply(Y, 1, function(y) {
         gamma[l] * prod(rho[, l]^y * (1 - rho[, l])^(1 - y))
@@ -81,7 +81,7 @@ em_lca <- function(Y, n_class = 3, max_iter = 1000, tol = 1e-6,
     })
     theta <- theta / rowSums(theta)
     
-    # M-step: gamma와 rho 업데이트
+    # M단계: gamma, rho 갱신
     gamma <- colMeans(theta)
     rho <- sapply(1:n_class, function(l) {
       colSums(theta[, l] * Y) / sum(theta[, l])
@@ -122,7 +122,7 @@ newton_lca <- function(Y, n_class = 3, max_iter = 30, tol = 1e-6,
   M <- ncol(Y)
   C <- n_class
 
-  # 이 코드에서는 수렴을 위하여 gamma는 softmax(delta)로, rho는 logistic(eta)으로 재파라미터하였음
+  # 확률 제약을 피하기 위해 gamma는 softmax(delta), rho는 logistic(eta)로 재모수화
 
   if (init == "true") {
     delta <- init_delta                   
@@ -135,7 +135,7 @@ newton_lca <- function(Y, n_class = 3, max_iter = 30, tol = 1e-6,
   theta <- c(delta, as.vector(eta))
   param_dim <- length(theta)
   
-  # delta -> gamma, eta -> rho 변환
+  # delta → gamma, eta → rho 변환
   gamma_fn <- function(theta) {
     # 소프트맥스 변환: delta(실수) → gamma(합이 1인 계층 비율)
     delta_part <- theta[1:C]
@@ -150,7 +150,7 @@ newton_lca <- function(Y, n_class = 3, max_iter = 30, tol = 1e-6,
     return(rho)
   }
   
-  # Log-likelihood, U, Hessian 계산
+  # 로그우도, 1차 미분(U), Hessian 계산
   get_loglik_u_hess <- function(theta) {
     gamma <- gamma_fn(theta)  # (C)
     rho   <- rho_fn(theta)    # (M x C)
@@ -275,7 +275,7 @@ newton_lca <- function(Y, n_class = 3, max_iter = 30, tol = 1e-6,
     lgh <- get_loglik_u_hess(theta)
     loglik_trace[iter] <- lgh$loglik
     
-    eps <- 1e-5 # 분석 결과, Hessian이 불안정하여 작은 상수 더함
+    eps <- 1e-5 # Hessian이 특이행렬에 가까워지는 경우를 막기 위해 대각에 작은 상수 추가
     update <- tryCatch(
       solve(lgh$hess + diag(eps, nrow(lgh$hess)), lgh$u),
       error = function(e) rep(0, length(theta))
@@ -354,7 +354,7 @@ compute_fit_indices <- function(Y, gamma, rho) {
   n_item <- ncol(Y)
   n_class <- length(gamma)
   
-  ## 1. log likelihood
+  # 1) 로그우도
   loglik <- 0
   for (i in 1:n) {
     prob <- 0
@@ -369,7 +369,7 @@ compute_fit_indices <- function(Y, gamma, rho) {
     loglik <- loglik + log(prob)
   }
   
-  ## 2. df, AIC, BIC
+  # 2) 자유도, AIC, BIC
   n_patterns <- 2^n_item
   n_param <- (n_class - 1) + (n_item * n_class)
   df <- n_patterns - 1 - n_param
@@ -400,11 +400,11 @@ true_rho[, 3] <- 0.1
 
 ### 3.2. 참값에서 시작 (실험 a, b)
 ```{r}
-# 실험 (a): true 초기값 + EM 알고리즘
+# 실험 (a): 참값 초기값 + EM
 res_a <- em_lca(Y = Y_mat, n_class = 3, init = "true",
                 init_gamma = true_gamma, init_rho = true_rho)
 
-# 실험 (b): true 초기값 + Newton-Raphson 알고리즘
+# 실험 (b): 참값 초기값 + Newton-Raphson
 true_delta <- log(true_gamma)            # softmax의 역변환 (상수 차이는 무관)
 logit <- function(p) log(p / (1 - p))
 true_eta <- logit(true_rho)              # logistic의 역변환
@@ -414,13 +414,13 @@ res_b <- newton_lca(Y = Y_mat, n_class = 3, init = "true",
 
 ### 3.3. 무작위 초기값에서 시작 (실험 c, d, e)
 ```{r}
-# 실험 (c): 랜덤 초기값 + EM 알고리즘
+# 실험 (c): 무작위 초기값 + EM
 res_c <- em_lca(Y = Y_mat, n_class = 3, init = "random")
 
-# 실험 (d): 랜덤 초기값 + Newton-Raphson 알고리즘
+# 실험 (d): 무작위 초기값 + Newton-Raphson
 res_d <- newton_lca(Y = Y_mat, n_class = 3, init = "random")
 
-# 실험 (e): 랜덤 초기값 + 하이브리드 알고리즘
+# 실험 (e): 무작위 초기값 + 하이브리드
 res_e <- hybrid_lca(Y = Y_mat, n_class = 3, init = "random")
 ```
 
