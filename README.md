@@ -64,7 +64,7 @@
 | `02_em_newton_raphson.Rmd` | LCA 모수 추정을 EM, Newton-Raphson, 두 방법을 합친 하이브리드로 직접 구현하고, 초기값(참값, 무작위)에 따른 수렴과 추정 정확도를 비교 |
 | `03_lca_latent_group.Rmd` | 잠재 집단 변수가 있는 다수준 형태의 LCA를 EM으로 구현해 GSS 자료에 적용 |
 
-- 실행 결과: [`01_generate_data.md`](lca-from-scratch/01_generate_data.md), [`02_em_newton_raphson.md`](lca-from-scratch/02_em_newton_raphson.md)
+- 실행 결과: [`01_generate_data.md`](lca-from-scratch/01_generate_data.md), [`02_em_newton_raphson.md`](lca-from-scratch/02_em_newton_raphson.md), [`03_lca_latent_group.md`](lca-from-scratch/03_lca_latent_group.md)
 
 **추정 방법과 초기값에 따른 결과** (모의자료, 참값 계층 비율 .30, .40, .30)
 
@@ -78,3 +78,4 @@
 
 - EM은 초기값과 관계없이 같은 최대 로그우도에 수렴하고 참값 비율을 회복 (무작위 초기값에서는 계층 순서만 바뀜)
 - Newton-Raphson과 하이브리드(EM 뒤 Newton-Raphson)는 30회 반복 한도 안에서 수렴하지 못하고 로그우도가 EM보다 낮음, 계층 비율도 참값에서 벗어남
+- GSS 자료 적용(03): 초기값 10개 중 최대 로그우도 -12271.8의 해 선택, STATUS 집단 비율 .63, .31, .06으로 추정되고 집단마다 TOL 계층 분포가 다르게 나타남

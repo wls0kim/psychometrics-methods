@@ -1,0 +1,303 @@
+
+- 상위 잠재 집단(STATUS, 부모 학력과 직업 지위로 측정)이 하위
+  잠재계층(TOL, 관용 태도로 측정)의 분포를 결정하는 구조의 LCA를 EM
+  알고리즘으로 직접 구현
+
+- 구조: STATUS 집단(G = 3) → 집단별 TOL 계층 비율 → TOL 계층(C = 4) →
+  관용 문항 응답
+
+- 자료: `slca` 패키지에 들어 있는 GSS 1976~77 자료(`gss7677`)
+
+- 국소해를 피하기 위해 초기값을 10번 바꿔 추정하고 로그우도가 가장 큰 해
+  선택
+
+## 1. 준비
+
+``` r
+library(slca)   # 예제 자료 gss7677
+data(gss7677)
+```
+
+## 2. 자료 준비
+
+``` r
+grp_item <- c("PAPRES", "PADEG", "MADEG") # STATUS 측정 문항
+tol_item <- c("TOLRAC", "TOLCOM", "TOLHOMO", "TOLATH", "TOLMIL") # TOL 측정 문항
+
+to_int <- function(x) if (is.factor(x)) as.integer(x) else x # 범주형(factor)을 정수로 변환
+
+# sapply로 묶어야 응답자 × 문항 숫자 행렬이 된다 (as.matrix(lapply(...))는 리스트 행렬이 됨)
+y_grp <- sapply(gss7677[, grp_item], to_int) # STATUS 문항 응답
+y_tol <- sapply(gss7677[, tol_item], to_int) # TOL 문항 응답
+dim(y_grp); dim(y_tol)
+```
+
+    ## [1] 2942    3
+
+    ## [1] 2942    5
+
+## 3. 함수
+
+### 3.1. EM 알고리즘
+
+- 모수: delta(STATUS 집단 비율), gamma(집단별 TOL 계층 비율),
+  rho_grp(집단별 STATUS 문항 응답확률), rho_tol(계층별 TOL 문항
+  응답확률)
+- 결측 응답은 해당 문항의 확률을 1로 두어 우도 계산에서 제외
+
+``` r
+em_latent_group <- function(y_grp, y_tol, G = 3, C = 4,
+                            maxiter = 1000, eps = 1e-6, seed = 2025) {
+  set.seed(seed)
+  N  <- nrow(y_grp);   M1 <- ncol(y_grp);   M2 <- ncol(y_tol)
+  r1 <- apply(y_grp, 2, max, na.rm = TRUE)  # STATUS 문항별 범주 수
+  r2 <- apply(y_tol, 2, max, na.rm = TRUE)  # TOL 문항별 범주 수
+  
+  # 무작위 초기값
+  delta   <- runif(G);        delta <- delta / sum(delta) # STATUS 집단 비율
+  gamma   <- matrix(runif(G*C), G, C)
+  gamma   <- gamma / rowSums(gamma) # 집단별 TOL 계층 비율
+  rho_grp <- lapply(r1, function(m) {
+    M <- matrix(runif(G*m), G, m)
+    M / rowSums(M) # STATUS 문항 응답확률
+  })
+  rho_tol <- lapply(r2, function(m) {
+    M <- matrix(runif(C*m), C, m)
+    M / rowSums(M)  # TOL 문항 응답확률
+  })
+  
+  loglik <- -Inf
+  for (it in seq_len(maxiter)) {
+    # ---------------------- E-step ------------------------
+    tau <- array(0, dim = c(N, G, C))
+    for (g in seq_len(G)) {
+      # STATUS 문항 확률의 곱
+      pr_grp <- apply(sapply(seq_len(M1), function(m) {
+        ifelse(is.na(y_grp[,m]), 1, rho_grp[[m]][g, y_grp[,m]])
+      }), 1, prod)
+      for (c in seq_len(C)) {
+        # TOL 문항 확률의 곱
+        pr_tol <- apply(sapply(seq_len(M2), function(m) {
+          ifelse(is.na(y_tol[,m]), 1, rho_tol[[m]][c, y_tol[,m]])
+        }), 1, prod)
+        tau[,g,c] <- delta[g] * gamma[g,c] * pr_grp * pr_tol
+      }
+    }
+    denom      <- apply(tau, 1, sum)
+    tau        <- sweep(tau, 1, denom, "/")   # 사후확률
+    loglik_new <- sum(log(denom))
+    if (abs(loglik_new - loglik) < eps) break
+    loglik <- loglik_new
+    
+    # ---------------------- M-step ------------------------
+    # 1) delta 갱신: 집단 g에 속할 사후확률의 평균
+    delta <- apply(tau, 2, sum) / N
+    
+    # 2) gamma 갱신: 집단 g 안에서 계층 c의 사후확률 비율
+    for (g in seq_len(G)) {
+      gamma[g, ] <- colSums(tau[, g, , drop = FALSE]) /
+                    sum(tau[, g, , drop = FALSE])
+    }
+    
+    # 3) rho_grp 갱신: 집단 g의 STATUS 문항 m 응답 k 확률
+    for (m in seq_len(M1)) {
+      obs <- !is.na(y_grp[, m])  # 응답한 사례만
+      for (g in seq_len(G)) {
+        # 응답자별 집단 g 사후확률을 응답 범주 k별로 합산
+        counts <- tapply(
+          X = rowSums(tau[obs, g, , drop = FALSE]), 
+          INDEX = y_grp[obs, m], 
+          FUN = sum
+        )
+        counts[is.na(counts)] <- 0
+        # 범주별 합계를 길이 r1[m] 벡터로
+        v <- rep(0, r1[m])
+        v[as.integer(names(counts))] <- counts
+        # 정규화
+        rho_grp[[m]][g, ] <- v / sum(v)
+      }
+    }
+    
+    # 4) rho_tol 갱신: 계층 c의 TOL 문항 m 응답 k 확률
+    for (m in seq_len(M2)) {
+      obs <- !is.na(y_tol[, m])
+      for (c in seq_len(C)) {
+        # 응답자별 계층 c 사후확률을 응답 범주 k별로 합산
+        counts <- tapply(
+          X = rowSums(tau[obs, , c, drop = FALSE]),
+          INDEX = y_tol[obs, m],
+          FUN = sum
+        )
+        counts[is.na(counts)] <- 0
+        v <- rep(0, r2[m])
+        v[as.integer(names(counts))] <- counts
+        rho_tol[[m]][c, ] <- v / sum(v)
+      }
+    }
+  }
+  
+  list(delta = delta, gamma = gamma,
+       rho_grp = rho_grp, rho_tol = rho_tol,
+       loglik = loglik, iter = it, tau = tau)
+}
+```
+
+### 3.2. 여러 초기값으로 추정해 최선의 해 고르기
+
+``` r
+em_multiple_starts <- function(y_grp, y_tol, G = 3, C = 4,
+                               n_start = 10, maxiter = 1000, eps = 1e-6) {
+  best <- list(loglik = -Inf)
+  for (s in seq_len(n_start)) {
+    cat(sprintf(">>> start #%d\n", s))
+    res <- em_latent_group(y_grp, y_tol, G, C, maxiter, eps, seed = 2025 + s)
+    if (res$loglik > best$loglik) best <- res
+  }
+  cat(sprintf("✔ Best loglik: %.4f\n", best$loglik))
+  best
+}
+```
+
+### 3.3. 결과 출력
+
+- 계층 번호는 추정할 때마다 임의로 붙으므로(label switching) 집단은 비율
+  순으로 정렬
+- TOL 계층은 `class_map`으로 순서를 맞춰 출력 (`class_map`은 이 시드의
+  결과를 보고 정한 값)
+
+``` r
+print_section <- function(title, mat, rn = NULL, cn = NULL) {
+  cat("\n==", title, "==\n")
+  if (!is.null(rn)) rownames(mat) <- rn
+  if (!is.null(cn)) colnames(mat) <- cn
+  print(mat, digits = 4)
+}
+
+print_lca_results <- function(res,
+                              grp_names = grp_item,
+                              tol_names = tol_item,
+                              class_map = c(3,4,1,2)) {
+  # 집단은 비율이 큰 순서로 정렬, class_map은 TOL 계층 번호를 예제 결과(slca 패키지)의 번호와 맞추려고
+  # 수작업으로 정한 순서이므로 시작값이 달라 계층 번호가 바뀌면 재설정 필요
+  ord <- order(res$delta, decreasing = TRUE)
+  
+  # PI: STATUS 집단 비율
+  pi_mat <- matrix(res$delta[ord], nrow = 1)
+  print_section("PI (STATUS proportions)",
+                pi_mat,
+                rn = "STATUS", 
+                cn = paste0("Class", seq_along(pi_mat)))
+  
+  # TAU: STATUS 집단별 TOL 계층 비율
+  tau_mat <- res$gamma[ord, class_map, drop = FALSE]
+  print_section("TAU (STATUS → TOL)",
+                tau_mat,
+                rn = paste0("STATUS", seq_len(nrow(tau_mat))),
+                cn = paste0("TOL_Class", seq_len(ncol(tau_mat))))
+  
+  # RHO: STATUS 문항의 집단별 응답 확률
+  for (i in seq_along(res$rho_grp)) {
+    mat <- res$rho_grp[[i]][ord, , drop = FALSE]
+    print_section(paste("RHO (grp:", grp_names[i], ")"),
+                  mat,
+                  rn = paste0("Class", seq_len(nrow(mat))),
+                  cn = paste0("Resp", seq_len(ncol(mat))))
+  }
+  
+  # RHO: TOL 문항의 계층별 응답 확률
+  for (i in seq_along(res$rho_tol)) {
+    mat <- res$rho_tol[[i]][class_map, , drop = FALSE]
+    print_section(paste("RHO (tol:", tol_names[i], ")"),
+                  mat,
+                  rn = paste0("Class", seq_len(nrow(mat))),
+                  cn = paste0("Resp", seq_len(ncol(mat))))
+  }
+}
+```
+
+## 4. 추정과 결과
+
+``` r
+res <- em_multiple_starts(y_grp, y_tol, G = 3, C = 4,
+                          n_start = 10, maxiter = 1000, eps = 1e-6)
+```
+
+    ## >>> start #1
+    ## >>> start #2
+    ## >>> start #3
+    ## >>> start #4
+    ## >>> start #5
+    ## >>> start #6
+    ## >>> start #7
+    ## >>> start #8
+    ## >>> start #9
+    ## >>> start #10
+    ## ✔ Best loglik: -12271.7677
+
+``` r
+print_lca_results(res)
+```
+
+    ## 
+    ## == PI (STATUS proportions) ==
+    ##        Class1 Class2  Class3
+    ## STATUS 0.6283 0.3104 0.06125
+    ## 
+    ## == TAU (STATUS → TOL) ==
+    ##         TOL_Class1 TOL_Class2 TOL_Class3 TOL_Class4
+    ## STATUS1    0.09882     0.1068    0.09198     0.7024
+    ## STATUS2    0.39251     0.2435    0.11008     0.2539
+    ## STATUS3    0.59471     0.1621    0.04781     0.1953
+    ## 
+    ## == RHO (grp: PAPRES ) ==
+    ##            Resp1  Resp2    Resp3
+    ## Class1 0.3591881 0.6312 0.009589
+    ## Class2 0.2537775 0.6772 0.069005
+    ## Class3 0.0001944 0.3763 0.623554
+    ## 
+    ## == RHO (grp: PADEG ) ==
+    ##            Resp1   Resp2    Resp3     Resp4      Resp5
+    ## Class1 9.410e-01 0.05641 0.002612 2.001e-26 7.318e-270
+    ## Class2 2.836e-01 0.66986 0.005971 4.053e-02 6.573e-178
+    ## Class3 1.441e-56 0.05159 0.038218 4.222e-01  4.880e-01
+    ## 
+    ## == RHO (grp: MADEG ) ==
+    ##         Resp1  Resp2    Resp3    Resp4     Resp5
+    ## Class1 0.9102 0.0858 0.001662 0.002355 3.103e-07
+    ## Class2 0.1377 0.7782 0.026857 0.048774 8.485e-03
+    ## Class3 0.1306 0.4563 0.012978 0.292579 1.076e-01
+    ## 
+    ## == RHO (tol: TOLRAC ) ==
+    ##            Resp1   Resp2
+    ## Class1 8.860e-01 0.11400
+    ## Class2 1.792e-06 1.00000
+    ## Class3 9.180e-01 0.08199
+    ## Class4 7.713e-02 0.92287
+    ## 
+    ## == RHO (tol: TOLCOM ) ==
+    ##          Resp1   Resp2
+    ## Class1 0.93184 0.06816
+    ## Class2 0.47005 0.52995
+    ## Class3 0.28116 0.71884
+    ## Class4 0.03368 0.96632
+    ## 
+    ## == RHO (tol: TOLHOMO ) ==
+    ##         Resp1   Resp2
+    ## Class1 0.9572 0.04276
+    ## Class2 0.6651 0.33487
+    ## Class3 0.5602 0.43981
+    ## Class4 0.1048 0.89521
+    ## 
+    ## == RHO (tol: TOLATH ) ==
+    ##          Resp1   Resp2
+    ## Class1 0.98154 0.01846
+    ## Class2 0.33382 0.66618
+    ## Class3 0.60030 0.39970
+    ## Class4 0.03238 0.96762
+    ## 
+    ## == RHO (tol: TOLMIL ) ==
+    ##          Resp1   Resp2
+    ## Class1 0.91535 0.08465
+    ## Class2 0.28092 0.71908
+    ## Class3 0.38192 0.61808
+    ## Class4 0.05314 0.94686
