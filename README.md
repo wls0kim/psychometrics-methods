@@ -11,6 +11,14 @@
 | [mindreading-esem-replication](mindreading-esem-replication) | 연구실 분석 실습 (2024-1) | 공개 논문의 분석 재현 | 문항 묶음(parcel) CFA, ESEM (Mplus 연동) | R, Mplus |
 | [lca-from-scratch](lca-from-scratch) | 잠재변수모형 (고려대, 2025-1) | 잠재계층분석(LCA) 추정 알고리즘 구현 | 모의자료 생성, EM, Newton-Raphson | R |
 
+## 방법 설명
+
+- **확인적 요인분석(CFA)**: 척도 문항들이 이론에서 정한 하위 요인대로 묶이는지 검증하는 방법
+- **ESEM**: CFA와 달리 문항이 여러 요인에 함께 걸리는 것을 허용해, 실제 자료에 더 유연하게 맞추는 구조방정식 모형
+- **문항 묶음(parcel)**: 문항 몇 개를 평균 내어 하나의 지표로 쓰는 방법
+- **잠재계층분석(LCA)**: 범주형 응답 패턴이 비슷한 사람끼리 묶어 보이지 않는 집단(계층)을 찾는 방법
+- **EM, Newton-Raphson**: 모형의 모수를 반복 계산으로 추정하는 알고리즘
+
 ## 다변량심리데이터분석: 직무소진 척도 문항 분석
 
 `kbat_cfa_item_analysis.Rmd`
