@@ -1,4 +1,4 @@
-- 연구실 분석 실습: 마음읽기(mindreading) 측정의 타당도를 다룬 공개 논문의 OSF 자료와 R 코드로 분석 재현
+- 마음읽기(mindreading) 측정의 타당도를 다룬 공개 논문의 OSF 자료와 R 코드로 분석 재현
 - 분석 설계는 원저자의 것이며, 원 코드를 단계별로 나누고 한국어 설명을 붙여 재정리
 
 > *Mindreading Measures Misread? A Multimethod Investigation into the Validity of Self-Report and Task-Based Approaches* (OSF 공개 자료와 코드)

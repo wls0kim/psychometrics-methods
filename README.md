@@ -1,15 +1,15 @@
 # 측정과 잠재변수 모형 실습
 
-척도 타당화, 구조방정식, 잠재계층분석을 다룬 대학원 수업 프로젝트 코드
+척도 타당화, 구조방정식, 잠재계층분석을 다룬 분석 코드
 
-- 대학원 수업의 기말 프로젝트와 세미나 실습에서 직접 작성한 코드
+- 대학원 과정에서 직접 작성한 분석 코드
 - 원자료, 결과 파일, 보고서 원문은 비공개
 
-| 폴더 | 수업 | 내용 | 방법 | 도구 |
-|---|---|---|---|---|
-| [burnout-scale-cfa](burnout-scale-cfa) | 다변량심리데이터분석 | 한국판 직무소진 척도(K-BAT) 문항 분석 | 확인적 요인분석, 고전검사이론 문항 분석 | R |
-| [mindreading-esem-replication](mindreading-esem-replication) | 연구실 분석 실습 | 공개 논문의 분석 재현 | 문항 묶음(parcel) CFA, ESEM (Mplus 연동) | R, Mplus |
-| [lca-from-scratch](lca-from-scratch) | 잠재변수모형 | 잠재계층분석(LCA) 추정 알고리즘 구현 | 모의자료 생성, EM, Newton-Raphson | R |
+| 폴더 | 내용 | 방법 | 도구 |
+|---|---|---|---|
+| [burnout-scale-cfa](burnout-scale-cfa) | 한국판 직무소진 척도(K-BAT) 문항 분석 | 확인적 요인분석, 고전검사이론 문항 분석 | R |
+| [mindreading-esem-replication](mindreading-esem-replication) | 공개 논문의 분석 재현 | 문항 묶음(parcel) CFA, ESEM (Mplus 연동) | R, Mplus |
+| [lca-from-scratch](lca-from-scratch) | 잠재계층분석(LCA) 추정 알고리즘 구현 | 모의자료 생성, EM, Newton-Raphson | R |
 
 ## 방법 설명
 
@@ -19,7 +19,7 @@
 - **잠재계층분석(LCA)**: 범주형 응답 패턴이 비슷한 사람끼리 묶어 보이지 않는 집단(계층)을 찾는 방법
 - **EM, Newton-Raphson**: 모형의 모수를 반복 계산으로 추정하는 알고리즘
 
-## 다변량심리데이터분석: 직무소진 척도 문항 분석
+## 직무소진 척도 문항 분석
 
 `kbat_cfa_item_analysis.Rmd`
 
@@ -27,15 +27,15 @@
 - KMO, Bartlett 구형성 검정, 다변량 정규성 확인 후 1요인 모형과 4요인 모형(소진, 심리적 거리두기, 정서 손상, 인지 손상)을 CFA로 비교
 - 고전검사이론 기준의 문항 난이도와 상하위 27% 변별도를 직접 함수로 계산
 
-## 연구실 실습: 마음읽기 측정 연구 재현
+## 마음읽기 측정 연구 재현
 
 `mindreading_replication.Rmd`
 
-- 연구실 분석 실습으로, 마음읽기(mindreading) 측정의 타당도를 다룬 공개 논문(*Mindreading Measures Misread? A Multimethod Investigation into the Validity of Self-Report and Task-Based Approaches*)의 OSF 공개 자료와 코드를 따라가며 분석을 재현
+- 마음읽기(mindreading) 측정의 타당도를 다룬 공개 논문(*Mindreading Measures Misread? A Multimethod Investigation into the Validity of Self-Report and Task-Based Approaches*)의 OSF 공개 자료와 코드를 따라가며 분석을 재현
 - 자기보고식과 과제 기반 마음읽기, 일반 인지기능, 심리사회적 기능 척도를 문항 묶음(parcel) 기반 CFA로 측정하고, `MplusAutomation`으로 ESEM 모형을 실행
 - 원 논문 코드의 흐름을 단계별로 나누고 한국어 주석을 달아 재정리 (분석 설계는 원저자)
 
-## 잠재변수모형: LCA 추정 알고리즘 직접 구현
+## LCA 추정 알고리즘 직접 구현
 
 | 파일 | 내용 |
 |---|---|
