@@ -1,0 +1,218 @@
+---
+title: "잠재계층분석(LCA) 3: 잠재 집단 변수가 있는 LCA의 EM 구현"
+author: "김진영"
+date: "2025-04-21"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: yeti
+---
+
+- 잠재변수모형(2025-1) 과제 3
+- 상위 잠재 집단(STATUS, 부모 학력과 직업 지위로 측정)이 하위 잠재계층(TOL, 관용 태도로 측정)의 분포를 결정하는 구조의 LCA를 EM 알고리즘으로 직접 구현
+
+- 구조: STATUS 집단(G = 3) → 집단별 TOL 계층 비율 → TOL 계층(C = 4) → 관용 문항 응답
+- 자료: `slca` 패키지에 들어 있는 GSS 1976~77 자료(`gss7677`)
+- 국소해를 피하기 위해 초기값을 10번 바꿔 추정하고 로그우도가 가장 큰 해 선택
+
+## 1. 준비
+
+```{r setup, message=FALSE}
+library(slca)   # 예제 자료 gss7677
+data(gss7677)
+```
+
+## 2. 자료 준비
+```{r}
+grp_item <- c("PAPRES", "PADEG", "MADEG") # STATUS 측정 문항
+tol_item <- c("TOLRAC", "TOLCOM", "TOLHOMO", "TOLATH", "TOLMIL") # TOL 측정 문항
+
+to_int <- function(x) if (is.factor(x)) as.integer(x) else x # factor를 정수로 변환
+
+# sapply로 묶어야 응답자 × 문항 숫자 행렬이 된다 (as.matrix(lapply(...))는 리스트 행렬이 됨)
+y_grp <- sapply(gss7677[, grp_item], to_int) # 그룹 변수 문항
+y_tol <- sapply(gss7677[, tol_item], to_int) # 잠재 변수 문항
+dim(y_grp); dim(y_tol)
+```
+## 3. 함수
+
+### 3.1. EM 알고리즘
+
+- 모수: delta(STATUS 집단 비율), gamma(집단별 TOL 계층 비율), rho_grp(집단별 STATUS 문항 응답확률), rho_tol(계층별 TOL 문항 응답확률)
+- 결측 응답은 해당 문항의 확률을 1로 두어 우도 계산에서 제외
+```{r}
+em_latent_group <- function(y_grp, y_tol, G = 3, C = 4,
+                            maxiter = 1000, eps = 1e-6, seed = 2025) {
+  set.seed(seed)
+  N  <- nrow(y_grp);   M1 <- ncol(y_grp);   M2 <- ncol(y_tol)
+  r1 <- apply(y_grp, 2, max, na.rm = TRUE)  # 각 grp 항목의 범주 개수
+  r2 <- apply(y_tol, 2, max, na.rm = TRUE)  # 각 tol 항목의 범주 개수
+  
+  # 초기 파라미터 설정
+  delta   <- runif(G);        delta <- delta / sum(delta) # 혼합 비율
+  gamma   <- matrix(runif(G*C), G, C)
+  gamma   <- gamma / rowSums(gamma) # 그룹 내 클래스 비율
+  rho_grp <- lapply(r1, function(m) {
+    M <- matrix(runif(G*m), G, m)
+    M / rowSums(M) # grp 항목별 response 확률
+  })
+  rho_tol <- lapply(r2, function(m) {
+    M <- matrix(runif(C*m), C, m)
+    M / rowSums(M)  # tol 항목별 response 확률
+  })
+  
+  loglik <- -Inf
+  for (it in seq_len(maxiter)) {
+    # ---------------------- E-step ------------------------
+    tau <- array(0, dim = c(N, G, C))
+    for (g in seq_len(G)) {
+      # 그룹 항목 확률 곱
+      pr_grp <- apply(sapply(seq_len(M1), function(m) {
+        ifelse(is.na(y_grp[,m]), 1, rho_grp[[m]][g, y_grp[,m]])
+      }), 1, prod)
+      for (c in seq_len(C)) {
+        # TOL 항목 확률 곱
+        pr_tol <- apply(sapply(seq_len(M2), function(m) {
+          ifelse(is.na(y_tol[,m]), 1, rho_tol[[m]][c, y_tol[,m]])
+        }), 1, prod)
+        tau[,g,c] <- delta[g] * gamma[g,c] * pr_grp * pr_tol
+      }
+    }
+    denom      <- apply(tau, 1, sum)
+    tau        <- sweep(tau, 1, denom, "/")   # posterior 계산
+    loglik_new <- sum(log(denom))
+    if (abs(loglik_new - loglik) < eps) break
+    loglik <- loglik_new
+    
+    # ---------------------- M-step ------------------------
+    # 1) delta 업데이트: 전체 데이터에서 그룹 g에 속할 posterior 합의 평균
+    delta <- apply(tau, 2, sum) / N
+    
+    # 2) gamma 업데이트: 그룹 g 내에서 클래스 c의 posterior 비율
+    for (g in seq_len(G)) {
+      gamma[g, ] <- colSums(tau[, g, , drop = FALSE]) /
+                    sum(tau[, g, , drop = FALSE])
+    }
+    
+    # 3) rho_grp 업데이트: 각 grp 항목 m, 그룹 g일 때 response k 확률
+    for (m in seq_len(M1)) {
+      obs <- !is.na(y_grp[, m])  # 결측 아닌 케이스만
+      for (g in seq_len(G)) {
+        # tau[obs, g, ]를 클래스 차원에서 합산 → 각 i가 g그룹일 확률
+        # 이 확률을 y_grp(obs,m)==k 인 경우만 골라 더함
+        counts <- tapply(
+          X = rowSums(tau[obs, g, , drop = FALSE]), 
+          INDEX = y_grp[obs, m], 
+          FUN = sum
+        )
+        counts[is.na(counts)] <- 0
+        # 벡터화: response k별 누적 posterior
+        v <- rep(0, r1[m])
+        v[as.integer(names(counts))] <- counts
+        # 정규화
+        rho_grp[[m]][g, ] <- v / sum(v)
+      }
+    }
+    
+    # 4) rho_tol 업데이트: 각 tol 항목 m, 클래스 c일 때 response k 확률
+    for (m in seq_len(M2)) {
+      obs <- !is.na(y_tol[, m])
+      for (c in seq_len(C)) {
+        # tau[obs, , c]를 그룹 차원에서 합산 → 각 i가 c클래스일 확률
+        counts <- tapply(
+          X = rowSums(tau[obs, , c, drop = FALSE]),
+          INDEX = y_tol[obs, m],
+          FUN = sum
+        )
+        counts[is.na(counts)] <- 0
+        v <- rep(0, r2[m])
+        v[as.integer(names(counts))] <- counts
+        rho_tol[[m]][c, ] <- v / sum(v)
+      }
+    }
+  }
+  
+  list(delta = delta, gamma = gamma,
+       rho_grp = rho_grp, rho_tol = rho_tol,
+       loglik = loglik, iter = it, tau = tau)
+}
+```
+### 3.2. 여러 초기값으로 추정해 최선의 해 고르기
+```{r}
+em_multiple_starts <- function(y_grp, y_tol, G = 3, C = 4,
+                               n_start = 10, maxiter = 1000, eps = 1e-6) {
+  best <- list(loglik = -Inf)
+  for (s in seq_len(n_start)) {
+    cat(sprintf(">>> start #%d\n", s))
+    res <- em_latent_group(y_grp, y_tol, G, C, maxiter, eps, seed = 2025 + s)
+    if (res$loglik > best$loglik) best <- res
+  }
+  cat(sprintf("✔ Best loglik: %.4f\n", best$loglik))
+  best
+}
+```
+
+
+### 3.3. 결과 출력
+
+- 계층 번호는 추정할 때마다 임의로 붙으므로(label switching) 집단은 비율 순으로 정렬
+- TOL 계층은 `class_map`으로 순서를 맞춰 출력 (`class_map`은 이 시드의 결과를 보고 정한 값)
+```{r}
+print_section <- function(title, mat, rn = NULL, cn = NULL) {
+  cat("\n==", title, "==\n")
+  if (!is.null(rn)) rownames(mat) <- rn
+  if (!is.null(cn)) colnames(mat) <- cn
+  print(mat, digits = 4)
+}
+
+print_lca_results <- function(res,
+                              grp_names = grp_item,
+                              tol_names = tol_item,
+                              class_map = c(3,4,1,2)) {
+  # 집단은 비율이 큰 순서로 정렬, class_map은 TOL 계층 번호를 예제 결과(slca 패키지)의 번호와 맞추려고
+  # 수작업으로 정한 순서이므로 시작값이 달라 계층 번호가 바뀌면 재설정 필요
+  ord <- order(res$delta, decreasing = TRUE)
+  
+  # PI: STATUS 집단 비율
+  pi_mat <- matrix(res$delta[ord], nrow = 1)
+  print_section("PI (STATUS proportions)",
+                pi_mat,
+                rn = "STATUS", 
+                cn = paste0("Class", seq_along(pi_mat)))
+  
+  # TAU: STATUS 집단별 TOL 계층 비율
+  tau_mat <- res$gamma[ord, class_map, drop = FALSE]
+  print_section("TAU (STATUS → TOL)",
+                tau_mat,
+                rn = paste0("STATUS", seq_len(nrow(tau_mat))),
+                cn = paste0("TOL_Class", seq_len(ncol(tau_mat))))
+  
+  # RHO: STATUS 문항의 집단별 응답 확률
+  for (i in seq_along(res$rho_grp)) {
+    mat <- res$rho_grp[[i]][ord, , drop = FALSE]
+    print_section(paste("RHO (grp:", grp_names[i], ")"),
+                  mat,
+                  rn = paste0("Class", seq_len(nrow(mat))),
+                  cn = paste0("Resp", seq_len(ncol(mat))))
+  }
+  
+  # RHO: TOL 문항의 계층별 응답 확률
+  for (i in seq_along(res$rho_tol)) {
+    mat <- res$rho_tol[[i]][class_map, , drop = FALSE]
+    print_section(paste("RHO (tol:", tol_names[i], ")"),
+                  mat,
+                  rn = paste0("Class", seq_len(nrow(mat))),
+                  cn = paste0("Resp", seq_len(ncol(mat))))
+  }
+}
+```
+
+
+## 4. 추정과 결과
+```{r}
+res <- em_multiple_starts(y_grp, y_tol, G = 3, C = 4,
+                          n_start = 10, maxiter = 1000, eps = 1e-6)
+print_lca_results(res)
+```

@@ -1,0 +1,471 @@
+---
+title: "잠재계층분석(LCA) 2: EM과 Newton-Raphson 추정 직접 구현"
+author: "김진영"
+date: "2025-03-28"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: yeti
+---
+
+- 잠재변수모형(2025-1) 과제 2
+- 이분 문항 LCA의 모수(계층 비율 gamma, 문항 응답확률 rho) 추정 알고리즘 세 가지를 패키지 없이 직접 구현
+- 초기값 조건에 따른 수렴 속도와 추정 결과 비교
+
+| 실험 | 초기값 | 알고리즘 |
+|---|---|---|
+| (a) | 참값 | EM |
+| (b) | 참값 | Newton-Raphson |
+| (c) | 무작위 | EM |
+| (d) | 무작위 | Newton-Raphson |
+| (e) | 무작위 | 하이브리드 (EM으로 근처까지 간 뒤 Newton-Raphson) |
+
+- 필요한 파일: 없음 (모의자료를 직접 생성)
+- 기본 R만 사용
+
+## 1. 모의자료 생성
+
+- 3개 계층, 이분 문항 6개, 응답자 1,000명
+- 계층 1은 모든 문항에 "예"(0.9), 계층 3은 모두 "아니요"(0.9), 계층 2는 앞 3문항만 "예"
+
+### 1.1. 참값 설정
+```{r}
+set.seed(123)
+
+n <- 1000 # 샘플 수
+n_class <- 3 # 잠재 클래스 수
+n_item <- 6 # 문항 수
+
+gamma <- c(0.3, 0.4, 0.3) # 클래스 비율
+class_id <- sample(1:n_class, size = n, replace = TRUE, prob = gamma)
+
+# 클래스별 문항-응답 확률
+rho <- matrix(NA, nrow = n_item, ncol = n_class)
+rho[ , 1] <- 0.9 # 1계층: 모든 문항에 "예"일 확률이 높음
+rho[ , 2] <- c(0.9, 0.9, 0.9, 0.1, 0.1, 0.1) # 2계층: 앞 3문항만 높음
+rho[ , 3] <- 0.1 # 3계층: 모든 문항에 "예"일 확률이 낮음
+```
+
+### 1.2. 응답 생성
+```{r}
+Y <- matrix(0, nrow = n, ncol = n_item)
+for (i in 1:n) {
+  cl <- class_id[i]
+  for (j in 1:n_item) {
+    Y[i, j] <- rbinom(1, 1, rho[j, cl])
+  }
+}
+
+data_df <- as.data.frame(Y)
+colnames(data_df) <- paste0("Item", 1:6)
+data_df$class <- class_id
+head(data_df)
+```
+## 2. 추정 함수
+
+### 2.1. EM 알고리즘
+
+- E단계: 응답자별 계층 사후확률(theta) 계산
+- M단계: 사후확률로 gamma와 rho 갱신
+- 로그우도 변화가 `tol`보다 작으면 종료
+```{r}
+em_lca <- function(Y, n_class = 3, max_iter = 1000, tol = 1e-6,
+                   init = "random", init_gamma = NULL, init_rho = NULL) {
+  
+  n <- nrow(Y)  # 응답자 수
+  m <- ncol(Y)  # 문항 수
+  
+  # init = "true"이면 true 값을, 아니면 랜덤으로 초기화(실험 조건 2개)
+  gamma <- if (init == "true") init_gamma else rep(1 / n_class, n_class)
+  rho <- if (init == "true") init_rho else matrix(runif(m * n_class, 0.2, 0.8), nrow = m)
+  
+  loglik_trace <- numeric(max_iter) 
+  start <- Sys.time()
+  
+  for (iter in 1:max_iter) {
+    
+    # E-step: 각 클래스별 p_il과 posterior theta 계산
+    theta <- sapply(1:n_class, function(l) {
+      apply(Y, 1, function(y) {
+        gamma[l] * prod(rho[, l]^y * (1 - rho[, l])^(1 - y))
+      })
+    })
+    theta <- theta / rowSums(theta)
+    
+    # M-step: gamma와 rho 업데이트
+    gamma <- colMeans(theta)
+    rho <- sapply(1:n_class, function(l) {
+      colSums(theta[, l] * Y) / sum(theta[, l])
+    })
+    
+    loglik <- sum(log(rowSums(sapply(1:n_class, function(l) {
+      apply(Y, 1, function(y) {
+        gamma[l] * prod(rho[, l]^y * (1 - rho[, l])^(1 - y))
+      })
+    }))))
+    
+    loglik_trace[iter] <- loglik
+    
+    if (iter > 1 && abs(loglik_trace[iter] - loglik_trace[iter - 1]) < tol) break
+  }
+  
+  time <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+  
+  return(list(
+    gamma = gamma,
+    rho = rho,
+    theta = theta,
+    loglik_trace = loglik_trace[1:iter],
+    iter = iter,
+    time = time
+  ))
+}
+```
+
+### 2.2. Newton-Raphson
+
+- 확률 제약(0~1, 합 1)을 피하기 위해 gamma는 softmax(delta), rho는 logistic(eta)로 바꿔 추정
+- 로그우도의 1차 미분(u)과 2차 미분(Hessian)으로 모수를 한 번에 갱신
+```{r}
+newton_lca <- function(Y, n_class = 3, max_iter = 30, tol = 1e-6,
+                               init = "random", init_delta = NULL, init_eta = NULL) { 
+  n <- nrow(Y)
+  M <- ncol(Y)
+  C <- n_class
+
+  # 이 코드에서는 수렴을 위하여 gamma는 softmax(delta)로, rho는 logistic(eta)으로 재파라미터하였음
+
+  if (init == "true") {
+    delta <- init_delta                   
+    eta   <- matrix(init_eta, nrow = M, ncol = C)
+  } else {
+    delta <- rep(0, C)  
+    eta   <- matrix(rnorm(M * C, mean = 0, sd = 0.5), nrow = M, ncol = C)
+  }
+  
+  theta <- c(delta, as.vector(eta))
+  param_dim <- length(theta)
+  
+  # delta -> gamma, eta -> rho 변환
+  gamma_fn <- function(theta) {
+    # 소프트맥스 변환: delta(실수) → gamma(합이 1인 계층 비율)
+    delta_part <- theta[1:C]
+    exp_delta  <- exp(delta_part)
+    gamma      <- exp_delta / sum(exp_delta)
+    return(gamma)
+  }
+  
+  rho_fn <- function(theta) {
+    eta_part <- matrix(theta[(C + 1):param_dim], nrow = M, ncol = C)
+    rho      <- exp(eta_part) / (1 + exp(eta_part))
+    return(rho)
+  }
+  
+  # Log-likelihood, U, Hessian 계산
+  get_loglik_u_hess <- function(theta) {
+    gamma <- gamma_fn(theta)  # (C)
+    rho   <- rho_fn(theta)    # (M x C)
+    
+    Q <- matrix(0, nrow = n, ncol = C)
+    for (i in 1:n) {
+      for (l in 1:C) {
+        pval <- 1
+        for (m_ in 1:M) {
+          y_im <- Y[i, m_]
+          pval <- pval * (rho[m_, l]^y_im) * ((1 - rho[m_, l])^(1 - y_im))
+        }
+        Q[i, l] <- pval
+      }
+    }
+    
+    p_il <- gamma[col(Q)] * Q
+    p_i  <- rowSums(p_il)
+    loglik <- sum(log(p_i))
+    
+    # 1차 미분 (u_vec)
+    u_vec <- numeric(param_dim)
+    
+    for (r in 1:C) {
+      s <- 0
+      for (i in 1:n) {
+        s <- s + p_il[i, r] / p_i[i]
+      }
+      u_vec[r] <- s
+    }
+    
+    idx_offset <- C
+    for (r in 1:C) {
+      for (m_ in 1:M) {
+        s <- 0
+        for (i in 1:n) {
+          ratio <- p_il[i, r] / p_i[i]
+          y_im  <- Y[i, m_]
+          s <- s + ratio * (y_im / rho[m_, r] - (1 - y_im) / (1 - rho[m_, r]))
+        }
+        u_vec[idx_offset + (r - 1) * M + m_] <- s
+      }
+    }
+    
+    # 2차 미분(Hessian) 계산
+    
+    partial_p_i <- function(i, j) {
+      if (j <= C) {
+        return(Q[i, j])
+      } else {
+        j_ <- j - C
+        rr <- (j_ - 1) %/% M + 1
+        mm <- (j_ - 1) %% M + 1
+        return(gamma[rr] * Q[i, rr] *
+               (Y[i, mm]/rho[mm, rr] - (1 - Y[i, mm])/(1 - rho[mm, rr])))
+      }
+    }
+    
+    partial2_p_i <- function(i, j, k) {
+      dp_i_j <- partial_p_i(i, j)
+      dp_i_k <- partial_p_i(i, k)
+      dp2    <- 0
+      if (j <= C && k <= C) {
+        dp2 <- 0
+      } else if (j <= C && k > C) {
+        j_ <- j
+        k_ <- k - C
+        rr_k <- (k_ - 1) %/% M + 1
+        mm_k <- (k_ - 1) %% M + 1
+        if (j_ == rr_k) {
+          dp2 <- Q[i, rr_k]*(
+            Y[i, mm_k]/rho[mm_k, rr_k] - (1 - Y[i, mm_k])/(1 - rho[mm_k, rr_k])
+          )
+        }
+      } else if (j > C && k <= C) {
+        dp2 <- partial2_p_i(i, k, j)
+      } else {
+        j_ <- j - C
+        k_ <- k - C
+        rr_j <- (j_ - 1) %/% M + 1
+        mm_j <- (j_ - 1) %% M + 1
+        rr_k <- (k_ - 1) %/% M + 1
+        mm_k <- (k_ - 1) %% M + 1
+        
+        if (rr_j == rr_k) {
+          if (mm_j == mm_k) {
+            y_imk <- Y[i, mm_k]
+            dD <- -y_imk/(rho[mm_k, rr_k]^2) + (1 - y_imk)/((1 - rho[mm_k, rr_k])^2)
+            dp2 <- gamma[rr_k]*Q[i, rr_k]*dD
+          } 
+        }
+      }
+      return(dp2)
+    }
+    
+    H <- matrix(0, param_dim, param_dim)
+    for (j in 1:param_dim) {
+      for (k in j:param_dim) {
+        val_sum <- 0
+        for (i in 1:n) {
+          if (p_i[i] > 0) {
+            dp2_i_jk <- partial2_p_i(i, j, k)
+            dp_i_j   <- partial_p_i(i, j)
+            dp_i_k   <- partial_p_i(i, k)
+            
+            val_sum  <- val_sum + (1 / p_i[i]) * dp2_i_jk -
+              (1 / p_i[i]^2) * dp_i_j * dp_i_k
+          }
+        }
+        H[j, k] <- val_sum
+        H[k, j] <- val_sum
+      }
+    }
+    
+    list(loglik = loglik, u = u_vec, hess = H)
+  }
+  
+  loglik_trace <- numeric(max_iter)
+  start_time <- Sys.time()
+  
+  for (iter in 1:max_iter) {
+    lgh <- get_loglik_u_hess(theta)
+    loglik_trace[iter] <- lgh$loglik
+    
+    eps <- 1e-5 # 분석 결과, Hessian이 불안정하여 작은 상수 더함
+    update <- tryCatch(
+      solve(lgh$hess + diag(eps, nrow(lgh$hess)), lgh$u),
+      error = function(e) rep(0, length(theta))
+    )
+    
+    theta_new <- theta + update
+    
+    if (sqrt(sum((theta_new - theta)^2)) < tol) {
+      theta <- theta_new
+      break
+    }
+    
+    theta <- theta_new
+  }
+  end_time <- Sys.time()
+  
+  final <- get_loglik_u_hess(theta)
+  gamma_final <- gamma_fn(theta)
+  rho_final   <- rho_fn(theta)
+  
+  p_il_final <- matrix(0, n, C)
+  for (i in 1:n) {
+    for (l in 1:C) {
+      prod_val <- 1
+      for (m_ in 1:M) {
+        prod_val <- prod_val * (rho_final[m_, l]^Y[i, m_]) * ((1 - rho_final[m_, l])^(1 - Y[i, m_]))
+      }
+      p_il_final[i, l] <- gamma_final[l] * prod_val
+    }
+  }
+  p_i_final     <- rowSums(p_il_final)
+  theta_posterior <- p_il_final / p_i_final
+  
+  list(
+    gamma        = gamma_final,
+    rho          = rho_final,
+    theta        = theta_posterior,
+    loglik       = final$loglik,
+    loglik_trace = loglik_trace[1:iter],
+    iter         = iter,
+    time         = as.numeric(difftime(end_time, start_time, units = "secs"))
+  )
+}
+```
+### 2.3. 하이브리드 (EM → Newton-Raphson)
+
+- EM은 안정적이지만 해 근처에서 느리고, Newton-Raphson은 해 근처에서 빠르지만 초기값에 민감
+- EM으로 수렴시킨 값을 Newton-Raphson의 초기값으로 사용
+```{r}
+hybrid_lca <- function(Y, n_class = 3, 
+                       max_iter_em = 1000, tol_em = 1e-6,
+                       max_iter_newton = 30, tol_newton = 1e-6,
+                       init = "random", init_gamma = NULL, init_rho = NULL) {
+  
+  # 1단계: EM으로 수렴
+  em_res <- em_lca(Y, n_class, max_iter_em, tol_em, init, init_gamma, init_rho)
+  
+  # 2단계: EM 결과를 재파라미터화
+  logit <- function(p) log(p / (1 - p))
+  eta_em <- logit(em_res$rho)
+  delta_em <- log(em_res$gamma)
+  
+  # 3단계: Newton-Raphson 실행
+  newton_res <- newton_lca(Y, n_class, max_iter_newton, tol_newton, 
+                           init = "true", init_delta = delta_em, init_eta = eta_em)
+  
+  newton_res
+}
+```
+### 2.4. 적합도 지수
+
+- 로그우도, 자유도(가능한 응답 패턴 수 - 1 - 모수 수), AIC, BIC 계산
+```{r}
+compute_fit_indices <- function(Y, gamma, rho) {
+  n <- nrow(Y)
+  n_item <- ncol(Y)
+  n_class <- length(gamma)
+  
+  ## 1. log likelihood
+  loglik <- 0
+  for (i in 1:n) {
+    prob <- 0
+    for (l in 1:n_class) {
+      p_l <- 1
+      for (m in 1:n_item) {
+        y_im <- Y[i, m]
+        p_l <- p_l * (rho[m, l]^y_im) * ((1 - rho[m, l])^(1 - y_im))
+      }
+      prob <- prob + gamma[l] * p_l
+    }
+    loglik <- loglik + log(prob)
+  }
+  
+  ## 2. df, AIC, BIC
+  n_patterns <- 2^n_item
+  n_param <- (n_class - 1) + (n_item * n_class)
+  df <- n_patterns - 1 - n_param
+  
+  AIC <- -2 * loglik + 2 * n_param
+  BIC <- -2 * loglik + log(n) * n_param
+  
+  return(list(
+    df = df,
+    AIC = AIC,
+    BIC = BIC,
+    loglik = loglik
+  ))
+}
+```
+## 3. 실험
+
+### 3.1. 참값 초기값 준비
+```{r}
+Y_mat <- as.matrix(data_df[, 1:6])
+
+true_gamma <- c(0.3, 0.4, 0.3)
+true_rho <- matrix(NA, nrow = 6, ncol = 3)
+true_rho[, 1] <- 0.9
+true_rho[, 2] <- c(0.9, 0.9, 0.9, 0.1, 0.1, 0.1)
+true_rho[, 3] <- 0.1
+```
+
+### 3.2. 참값에서 시작 (실험 a, b)
+```{r}
+# 실험 (a): true 초기값 + EM 알고리즘
+res_a <- em_lca(Y = Y_mat, n_class = 3, init = "true",
+                init_gamma = true_gamma, init_rho = true_rho)
+
+# 실험 (b): true 초기값 + Newton-Raphson 알고리즘
+true_delta <- log(true_gamma)            # softmax의 역변환 (상수 차이는 무관)
+logit <- function(p) log(p / (1 - p))
+true_eta <- logit(true_rho)              # logistic의 역변환
+res_b <- newton_lca(Y = Y_mat, n_class = 3, init = "true",
+                    init_delta = true_delta, init_eta = true_eta)
+```
+
+### 3.3. 무작위 초기값에서 시작 (실험 c, d, e)
+```{r}
+# 실험 (c): 랜덤 초기값 + EM 알고리즘
+res_c <- em_lca(Y = Y_mat, n_class = 3, init = "random")
+
+# 실험 (d): 랜덤 초기값 + Newton-Raphson 알고리즘
+res_d <- newton_lca(Y = Y_mat, n_class = 3, init = "random")
+
+# 실험 (e): 랜덤 초기값 + 하이브리드 알고리즘
+res_e <- hybrid_lca(Y = Y_mat, n_class = 3, init = "random")
+```
+
+## 4. 결과 비교
+
+- 다섯 실험의 반복 횟수, 최종 로그우도, 추정 계층 비율, 적합도 지수, 소요 시간 비교
+- 참값 계층 비율: 0.3, 0.4, 0.3
+
+```{r}
+results <- list(a = res_a, b = res_b, c = res_c, d = res_d, e = res_e)
+
+experiment_labels <- c(
+  a = "참값 초기값 + EM",
+  b = "참값 초기값 + Newton-Raphson",
+  c = "무작위 초기값 + EM",
+  d = "무작위 초기값 + Newton-Raphson",
+  e = "무작위 초기값 + 하이브리드"
+)
+
+results_summary <- do.call(rbind, lapply(names(results), function(k) {
+  res <- results[[k]]
+  fit <- compute_fit_indices(Y_mat, res$gamma, res$rho)
+  data.frame(
+    Experiment   = experiment_labels[[k]],
+    Iterations   = res$iter,
+    Final_LogLik = tail(res$loglik_trace, 1),
+    Gamma        = paste(round(res$gamma, 3), collapse = ", "),
+    AIC          = fit$AIC,
+    BIC          = fit$BIC,
+    Time_sec     = res$time
+  )
+}))
+rownames(results_summary) <- NULL
+results_summary
+```

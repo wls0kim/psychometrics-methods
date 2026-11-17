@@ -1,0 +1,257 @@
+---
+title: "한국판 직무소진 척도(K-BAT) 확인적 요인분석과 문항 분석"
+author: "김진영"
+date: "2024-06-12"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: yeti
+---
+
+- 다변량심리데이터분석(2024-1) 기말 프로젝트
+- 한국판 직무소진평가척도(K-BAT) 22문항 응답 자료로 요인 구조와 문항 양호도 점검
+
+- 필요한 파일: `data.xlsx` (응답자 번호 `No`, 문항 22개, `sex`, `age`)
+- 하위 요인: 소진(EX, 8문항), 심리적 거리두기(MD, 4문항), 정서 손상(IE, 5문항), 인지 손상(IC, 5문항)
+- 분석 순서: 기술통계 → 요인분석 가정 확인 → 경쟁 모형 비교(1요인, 4요인, 2차 요인) → 모형 수정 → 성별 측정 동일성 → 고전검사이론 문항 분석
+
+## 1. 준비
+
+```{r setup, message = FALSE}
+library(readxl)   # 엑셀 자료 읽기
+library(readr)    # 결과 csv 저장
+library(psych)    # 기술통계, KMO, Bartlett, Mardia, 신뢰도
+library(lavaan)   # 확인적 요인분석
+library(semPlot)  # 경로도
+```
+
+```{r}
+data <- read_excel("data.xlsx")
+dim(data)  # 232명, 25개 변수
+
+# 분석에 쓰는 22개 문항만 따로 둔다 (응답자 번호, 성별, 나이 제외)
+item_cols <- c(paste0("EX", 1:8), paste0("MD", 1:4),
+               paste0("IE", 1:5), paste0("IC", 1:5))
+items <- as.data.frame(data[, item_cols])
+```
+
+## 2. 기술통계
+
+```{r}
+describe(data)
+table(data$sex)  # 1, 2: 성별 코드
+```
+
+## 3. 요인분석 가정 확인
+
+```{r}
+KMO(items)                          # 표본 적절성 (0.8 이상이면 양호)
+cortest.bartlett(cor(items), n = nrow(items))  # 상관행렬이 단위행렬과 다른지 검정
+mardia(items, plot = FALSE)         # 다변량 정규성
+```
+
+## 4. 확인적 요인분석
+
+### 4.1. 경쟁 모형 설정
+
+- 이론적으로 가능한 세 가지 구조 비교
+- 각 요인의 첫 문항 계수를 1로 고정해 척도 설정
+
+```{r}
+# (1) 1요인 모형: 22문항이 하나의 소진 요인을 측정
+model_1f <- '
+  Burnout =~ 1*EX4 + EX2 + EX3 + EX1 + EX5 + EX6 + EX7 + EX8 +
+             MD1 + MD2 + MD3 + MD4 +
+             IE1 + IE2 + IE3 + IE4 + IE5 +
+             IC1 + IC2 + IC3 + IC4 + IC5
+'
+
+# (2) 4요인 모형: 하위 요인 4개, 요인 간 상관 허용 (cfa()의 기본 설정)
+model_4f <- '
+  Exhaustion          =~ 1*EX4 + EX2 + EX3 + EX1 + EX5 + EX6 + EX7 + EX8
+  MentalDistance      =~ 1*MD2 + MD1 + MD3 + MD4
+  EmotionalImpairment =~ 1*IE4 + IE2 + IE3 + IE1 + IE5
+  CognitiveImpairment =~ 1*IC4 + IC2 + IC3 + IC1 + IC5
+'
+
+# (3) 2차 요인 모형: 4개 하위 요인 위에 상위 소진 요인
+model_2nd <- paste(model_4f, '
+  Burnout =~ Exhaustion + MentalDistance + EmotionalImpairment + CognitiveImpairment
+')
+```
+
+### 4.2. 모형 추정과 비교
+
+```{r}
+fit_measures <- c("chisq", "df", "rmsea", "srmr", "cfi", "tli")
+
+fit_1f  <- cfa(model_1f,  data)
+fit_4f  <- cfa(model_4f,  data)
+fit_2nd <- cfa(model_2nd, data)
+
+summary(fit_1f,  standardized = TRUE, fit.measures = TRUE)
+summary(fit_4f,  standardized = TRUE, fit.measures = TRUE)
+summary(fit_2nd, standardized = TRUE, fit.measures = TRUE)
+
+# 세 모형의 적합도를 한 표로 비교
+round(rbind(one_factor   = fitMeasures(fit_1f,  fit_measures),
+            four_factor  = fitMeasures(fit_4f,  fit_measures),
+            second_order = fitMeasures(fit_2nd, fit_measures)), 3)
+
+anova(fit_1f, fit_2nd, fit_4f)  # 카이제곱 차이 검정
+```
+
+### 4.3. 모형 수정
+
+- 4요인 모형의 수정지수 확인 후 EX6 제외
+- 내용이 겹치는 문항 쌍(EX7-EX8, IE1-IE2)의 오차 공분산 허용
+
+```{r}
+mi <- modindices(fit_4f)
+head(mi[order(-mi$mi), ], 20)  # 수정지수 상위 20개
+
+model_final <- '
+  Exhaustion          =~ 1*EX4 + EX2 + EX3 + EX1 + EX5 + EX7 + EX8
+  MentalDistance      =~ 1*MD2 + MD1 + MD3 + MD4
+  EmotionalImpairment =~ 1*IE4 + IE2 + IE3 + IE1 + IE5
+  CognitiveImpairment =~ 1*IC4 + IC2 + IC3 + IC1 + IC5
+
+  # 오차 공분산
+  EX7 ~~ EX8
+  IE2 ~~ IE1
+'
+fit_final <- cfa(model_final, data)
+summary(fit_final, standardized = TRUE, fit.measures = TRUE)
+fitMeasures(fit_final, fit_measures)
+
+# 참고: 수정 모형은 EX6을 뺐기 때문에 4요인 모형과 관측변수 구성이 달라
+# 주의: 아래 카이제곱 차이 검정은 엄밀한 위계 비교가 아님 (lavaan 경고)
+anova(fit_final, fit_4f)
+```
+
+### 4.4. 최종 모형의 표준화 계수
+
+```{r}
+std <- standardizedSolution(fit_final)[, c("lhs", "op", "rhs", "est.std", "pvalue")]
+
+# 유의수준 표시: *** p < .001, ** p < .01, * p < .05
+stars <- ifelse(std$pvalue < .001, "***",
+         ifelse(std$pvalue < .01,  "**",
+         ifelse(std$pvalue < .05,  "*", "")))
+std$est_with_significance <- paste0(round(std$est.std, 3), stars)
+
+loadings_table <- std[, c("lhs", "rhs", "est_with_significance")]
+loadings_table
+write_csv(loadings_table, "loadings_cfa_with_significance.csv")
+```
+
+```{r, fig.width = 10, fig.height = 8}
+semPaths(fit_final, what = "std", whatLabels = "std", layout = "tree", rotation = 2,
+         edge.label.cex = 1.2, title = TRUE, sizeMan = 4, sizeLat = 4,
+         mar = c(10, 5, 10, 5))
+```
+
+## 5. 성별 측정 동일성
+
+- 제약을 단계적으로 추가하며 성별 집단 간 측정 구조의 동일성 확인
+
+```{r}
+fit_configural <- cfa(model_final, data, group = "sex")  # 형태 동일성: 요인 구조만 같음
+fit_metric     <- cfa(model_final, data, group = "sex",  # 측정 단위 동일성: 요인계수 동일
+                      group.equal = "loadings")
+fit_scalar     <- cfa(model_final, data, group = "sex",  # 절편 동일성: 요인계수 + 절편 동일
+                      group.equal = c("loadings", "intercepts"))
+fit_strict     <- cfa(model_final, data, group = "sex",  # 엄격 동일성: 요인계수 + 절편 + 잔차 동일
+                      group.equal = c("loadings", "intercepts", "residuals"))
+
+summary(fit_configural, standardized = TRUE, fit.measures = TRUE)
+summary(fit_metric,     standardized = TRUE, fit.measures = TRUE)
+summary(fit_scalar,     standardized = TRUE, fit.measures = TRUE)
+summary(fit_strict,     standardized = TRUE, fit.measures = TRUE)
+
+# 단계별 비교
+anova(fit_configural, fit_metric, fit_scalar)
+anova(fit_metric, fit_scalar)
+anova(fit_configural, fit_strict)
+
+round(rbind(configural = fitMeasures(fit_configural, fit_measures),
+            metric     = fitMeasures(fit_metric,     fit_measures),
+            scalar     = fitMeasures(fit_scalar,     fit_measures),
+            strict     = fitMeasures(fit_strict,     fit_measures)), 3)
+```
+
+## 6. 고전검사이론 문항 분석
+
+- 모든 문항은 1~5점 리커트 척도, 문항 점수의 합을 총점으로 사용
+
+```{r}
+total_score <- rowSums(items)
+```
+
+### 6.1. 문항 기술통계와 신뢰도
+
+- 평균, 표준편차, 수정된 문항-총점 상관(r.drop), 문항 제거 시 신뢰도
+
+```{r}
+item_stats <- psych::alpha(items)
+item_stats$total         # 전체 Cronbach's alpha
+item_stats$item.stats    # 문항별 평균, 표준편차, 문항-총점 상관
+item_stats$alpha.drop    # 문항 제거 시 alpha
+```
+
+### 6.2. 문항 난이도
+
+- 응답을 0~4점(1점 → 0점, …, 5점 → 4점)으로 바꾼 평균
+- 값이 클수록 소진 증상에 더 강하게 응답한 문항
+
+```{r}
+item_difficulty <- colMeans(items - 1)
+round(item_difficulty, 3)
+```
+
+### 6.3. 문항 변별도: 상하위 27% 집단 비교
+
+- 총점 상위 27% 집단과 하위 27% 집단의 문항 평균 차이
+- 클수록 총점 고저를 잘 구별하는 문항
+
+```{r}
+upper_lower_discrimination <- function(items, total, prop = .27) {
+  n_group <- floor(nrow(items) * prop)
+  ord     <- order(total, decreasing = TRUE)
+  upper   <- ord[1:n_group]
+  lower   <- ord[(nrow(items) - n_group + 1):nrow(items)]
+  colMeans(items[upper, ]) - colMeans(items[lower, ])
+}
+
+round(upper_lower_discrimination(items, total_score), 3)
+```
+
+### 6.4. 문항 변별도: 문항-총점 상관
+
+- 해당 문항을 포함한 총점과의 상관 (문항을 뺀 수정 상관은 6.1의 `r.drop`)
+
+```{r}
+item_total_cor <- sapply(items, function(x) cor(x, total_score))
+round(item_total_cor, 3)
+```
+
+### 6.5. 문항 변별도: 고반응 집단과 저반응 집단의 총점 차이
+
+- 각 문항에 4~5점으로 답한 집단과 1~2점으로 답한 집단의 총점 평균 차이를 양분상관 형태로 표준화
+
+```{r}
+biserial_discrimination <- function(item, total) {
+  high <- total[item >= 4]  # 4~5점 응답 집단의 총점
+  low  <- total[item <= 2]  # 1~2점 응답 집단의 총점
+
+  p <- length(high) / length(total)  # 고반응 집단 비율
+  if (p < .5) p <- 1 - p
+  y <- sqrt(-2 * log(1 - p))         # 정규분포 높이의 근사값
+
+  (mean(high) - mean(low)) / sd(total) * (sqrt(p * (1 - p)) / y)
+}
+
+round(sapply(items, biserial_discrimination, total = total_score), 3)
+```
