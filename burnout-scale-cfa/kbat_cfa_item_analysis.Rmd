@@ -1,15 +1,3 @@
----
-title: "한국판 직무소진 척도(K-BAT) 확인적 요인분석과 문항 분석"
-author: "김진영"
-date: "2024-06-12"
-output:
-  html_document:
-    toc: true
-    toc_depth: 3
-    toc_float: true
-    theme: yeti
----
-
 - 다변량심리데이터분석(2024-1) 기말 프로젝트
 - 한국판 직무소진평가척도(K-BAT) 22문항 응답 자료로 요인 구조와 문항 양호도 점검
 
